@@ -34,7 +34,7 @@ function App() {
       return;
     }
 
-    fetch("http://localhost:3000/tasks", {
+   fetch(`${import.meta.env.VITE_API_URL}/tasks`, {
       cache: "no-store",
       headers: {
         Authorization: `Bearer ${token}`
@@ -82,7 +82,7 @@ function App() {
       const token = localStorage.getItem("token");
 
       const response = await fetch(
-        "http://localhost:3000/tasks",
+        `${import.meta.env.VITE_API_URL}/tasks`,
         {
           method: "POST",
           headers: {
@@ -119,7 +119,7 @@ function App() {
       const token = localStorage.getItem("token");
 
       const response = await fetch(
-        `http://localhost:3000/tasks/${id}`,
+        `${import.meta.env.VITE_API_URL}/tasks/${id}`,
         {
           method: "PATCH",
           headers: {
@@ -155,7 +155,7 @@ function App() {
       const token = localStorage.getItem("token");
 
       const response = await fetch(
-        `http://localhost:3000/tasks/${id}`,
+       `${import.meta.env.VITE_API_URL}/tasks/${id}`,
         {
           method: "DELETE",
           headers: {
@@ -187,7 +187,7 @@ function App() {
       const token = localStorage.getItem("token");
 
       const response = await fetch(
-        `http://localhost:3000/tasks/${id}`,
+        `${import.meta.env.VITE_API_URL}/tasks/${id}`,
         {
           method: "PUT",
           headers: {
@@ -227,7 +227,7 @@ function App() {
       const token = localStorage.getItem("token");
 
       const response = await fetch(
-        "http://localhost:3000/tasks",
+        `${import.meta.env.VITE_API_URL}/tasks`,
         {
           method: "DELETE",
           headers: {
