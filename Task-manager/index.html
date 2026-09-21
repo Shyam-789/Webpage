@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <!-- Character Encoding -->
+    <meta charset="UTF-8">
+
+    <!-- Responsive Design -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Website Title -->
+    <title>Task Manager</title>
+
+    <!-- Website Description -->
+    <meta name="description" content="A simple and modern Task Manager application">
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- =========================
+         HEADER / NAVBAR
+    ========================== -->
+    <header>
+
+        <nav>
+
+            <!-- Logo -->
+            <div class="logo">
+                <a href="#home">TaskManager</a>
+            </div>
+
+            <!-- Navigation Links -->
+            <ul class="nav-links">
+
+                <li>
+                    <a href="#home">Home</a>
+                </li>
+
+                <li>
+                    <a href="#tasks">Tasks</a>
+                </li>
+
+                <li>
+                    <a href="#about">About</a>
+                </li>
+
+                <li>
+                    <a href="#contact">Contact</a>
+                </li>
+
+            </ul>
+
+            <!-- Authentication Buttons -->
+            <div class="nav-buttons">
+
+                <a href="#login">Login</a>
+
+                <a href="#register">Register</a>
+
+            </div>
+
+        </nav>
+
+    </header>
+
+
+    <!-- =========================
+         MAIN CONTENT
+    ========================== -->
+    <main>
+
+
+        <!-- =========================
+             HOME SECTION
+        ========================== -->
+        <section id="home">
+
+            <div class="hero-content">
+
+                <h1>Manage Your Tasks Easily</h1>
+
+                <p>
+                    Organize your daily tasks, track your progress,
+                    and get things done efficiently.
+                </p>
+
+                <a href="#tasks">
+                    Get Started
+                </a>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =========================
+             TASK SECTION
+        ========================== -->
+        <section id="tasks">
+
+            <div class="task-container">
+
+                <h2>My Tasks</h2>
+
+                <p>
+                    Add and manage your daily tasks.
+                </p>
+
+
+                <!-- Task Form -->
+                <form id="taskForm">
+
+                    <div>
+
+                        <label for="taskInput">
+                            Task Name
+                        </label>
+
+                        <input
+                            type="text"
+                            id="taskInput"
+                            name="task"
+                            placeholder="Enter your task"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div>
+
+                        <label for="taskDescription">
+                            Description
+                        </label>
+
+                        <textarea
+                            id="taskDescription"
+                            name="description"
+                            placeholder="Enter task description"
+                            rows="4"
+                        ></textarea>
+
+                    </div>
+
+
+                    <div>
+
+                        <label for="taskPriority">
+                            Priority
+                        </label>
+
+                        <select
+                            id="taskPriority"
+                            name="priority"
+                        >
+
+                            <option value="low">
+                                Low
+                            </option>
+
+                            <option value="medium" selected>
+                                Medium
+                            </option>
+
+                            <option value="high">
+                                High
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <div>
+
+                        <label for="taskDate">
+                            Due Date
+                        </label>
+
+                        <input
+                            type="date"
+                            id="taskDate"
+                            name="date"
+                        >
+
+                    </div>
+
+
+                    <button type="submit">
+                        Add Task
+                    </button>
+
+                </form>
+
+
+                <!-- =========================
+                     TASK LIST
+                ========================== -->
+
+                <div class="task-list-section">
+
+                    <h3>Task List</h3>
+
+
+                    <!-- Task Statistics -->
+
+                    <div class="task-statistics">
+
+                        <div>
+                            <span>Total Tasks</span>
+
+                            <strong id="taskCount">
+                                0
+                            </strong>
+                        </div>
+
+
+                        <div>
+                            <span>Completed</span>
+
+                            <strong id="completedCount">
+                                0
+                            </strong>
+                        </div>
+
+
+                        <div>
+                            <span>Pending</span>
+
+                            <strong id="pendingCount">
+                                0
+                            </strong>
+                        </div>
+
+                    </div>
+
+
+                    <!-- Tasks will appear here -->
+
+                    <ul id="taskList">
+
+                        <!-- Example Task -->
+
+                        <li>
+
+                            <div>
+
+                                <input
+                                    type="checkbox"
+                                    class="task-checkbox"
+                                >
+
+                                <span>
+                                    Example Task
+                                </span>
+
+                            </div>
+
+
+                            <div>
+
+                                <button
+                                    type="button"
+                                    class="edit-btn"
+                                >
+                                    Edit
+                                </button>
+
+                                <button
+                                    type="button"
+                                    class="delete-btn"
+                                >
+                                    Delete
+                                </button>
+
+                            </div>
+
+                        </li>
+
+                    </ul>
+
+
+                    <!-- Clear Tasks Button -->
+
+                    <button
+                        type="button"
+                        id="clearBtn"
+                    >
+                        Clear All Tasks
+                    </button>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =========================
+             LOGIN SECTION
+        ========================== -->
+        <section id="login">
+
+            <div class="auth-container">
+
+                <h2>Login</h2>
+
+                <p>
+                    Login to access your tasks.
+                </p>
+
+
+                <form id="loginForm">
+
+                    <!-- Email -->
+
+                    <div>
+
+                        <label for="loginEmail">
+                            Email
+                        </label>
+
+                        <input
+                            type="email"
+                            id="loginEmail"
+                            name="email"
+                            placeholder="Enter your email"
+                            required
+                        >
+
+                    </div>
+
+
+                    <!-- Password -->
+
+                    <div>
+
+                        <label for="loginPassword">
+                            Password
+                        </label>
+
+                        <input
+                            type="password"
+                            id="loginPassword"
+                            name="password"
+                            placeholder="Enter your password"
+                            required
+                        >
+
+                    </div>
+
+
+                    <!-- Remember Me -->
+
+                    <div>
+
+                        <input
+                            type="checkbox"
+                            id="rememberMe"
+                            name="remember"
+                        >
+
+                        <label for="rememberMe">
+                            Remember me
+                        </label>
+
+                    </div>
+
+
+                    <!-- Login Button -->
+
+                    <button type="submit">
+                        Login
+                    </button>
+
+
+                    <!-- Forgot Password -->
+
+                    <p>
+                        <a href="#forgot-password">
+                            Forgot Password?
+                        </a>
+                    </p>
+
+
+                    <!-- Register Link -->
+
+                    <p>
+                        Don't have an account?
+                        <a href="#register">
+                            Register
+                        </a>
+                    </p>
+
+                </form>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =========================
+             REGISTER SECTION
+        ========================== -->
+        <section id="register">
+
+            <div class="auth-container">
+
+                <h2>Create Account</h2>
+
+                <p>
+                    Register to start managing your tasks.
+                </p>
+
+
+                <form id="registerForm">
+
+                    <!-- Full Name -->
+
+                    <div>
+
+                        <label for="registerName">
+                            Full Name
+                        </label>
+
+                        <input
+                            type="text"
+                            id="registerName"
+                            name="name"
+                            placeholder="Enter your full name"
+                            required
+                        >
+
+                    </div>
+
+
+                    <!-- Email -->
+
+                    <div>
+
+                        <label for="registerEmail">
+                            Email
+                        </label>
+
+                        <input
+                            type="email"
+                            id="registerEmail"
+                            name="email"
+                            placeholder="Enter your email"
+                            required
+                        >
+
+                    </div>
+
+
+                    <!-- Password -->
+
+                    <div>
+
+                        <label for="registerPassword">
+                            Password
+                        </label>
+
+                        <input
+                            type="password"
+                            id="registerPassword"
+                            name="password"
+                            placeholder="Create a password"
+                            minlength="6"
+                            required
+                        >
+
+                    </div>
+
+
+                    <!-- Confirm Password -->
+
+                    <div>
+
+                        <label for="confirmPassword">
+                            Confirm Password
+                        </label>
+
+                        <input
+                            type="password"
+                            id="confirmPassword"
+                            name="confirmPassword"
+                            placeholder="Confirm your password"
+                            minlength="6"
+                            required
+                        >
+
+                    </div>
+
+
+                    <!-- Terms -->
+
+                    <div>
+
+                        <input
+                            type="checkbox"
+                            id="terms"
+                            name="terms"
+                            required
+                        >
+
+                        <label for="terms">
+                            I agree to the Terms and Conditions
+                        </label>
+
+                    </div>
+
+
+                    <!-- Register Button -->
+
+                    <button type="submit">
+                        Create Account
+                    </button>
+
+
+                    <!-- Login Link -->
+
+                    <p>
+                        Already have an account?
+                        <a href="#login">
+                            Login
+                        </a>
+                    </p>
+
+                </form>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =========================
+             FORGOT PASSWORD
+        ========================== -->
+        <section id="forgot-password">
+
+            <div class="auth-container">
+
+                <h2>Forgot Password?</h2>
+
+                <p>
+                    Enter your email and we will help you
+                    reset your password.
+                </p>
+
+
+                <form id="forgotPasswordForm">
+
+                    <div>
+
+                        <label for="forgotEmail">
+                            Email
+                        </label>
+
+                        <input
+                            type="email"
+                            id="forgotEmail"
+                            name="email"
+                            placeholder="Enter your email"
+                            required
+                        >
+
+                    </div>
+
+
+                    <button type="submit">
+                        Send Reset Link
+                    </button>
+
+                </form>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =========================
+             ABOUT SECTION
+        ========================== -->
+        <section id="about">
+
+            <div>
+
+                <h2>About TaskManager</h2>
+
+                <p>
+                    TaskManager is a simple task management
+                    application designed to help users organize
+                    their daily work.
+                </p>
+
+
+                <p>
+                    Users can create tasks, set priorities,
+                    choose due dates, complete tasks and
+                    remove tasks.
+                </p>
+
+
+                <h3>Features</h3>
+
+                <ul>
+
+                    <li>
+                        Create tasks
+                    </li>
+
+                    <li>
+                        Edit tasks
+                    </li>
+
+                    <li>
+                        Delete tasks
+                    </li>
+
+                    <li>
+                        Mark tasks as completed
+                    </li>
+
+                    <li>
+                        Set task priority
+                    </li>
+
+                    <li>
+                        Set due dates
+                    </li>
+
+                    <li>
+                        User authentication
+                    </li>
+
+                    <li>
+                        Database storage
+                    </li>
+
+                </ul>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =========================
+             CONTACT SECTION
+        ========================== -->
+        <section id="contact">
+
+            <div>
+
+                <h2>Contact Us</h2>
+
+                <p>
+                    Have a question? Send us a message.
+                </p>
+
+
+                <form id="contactForm">
+
+                    <!-- Name -->
+
+                    <div>
+
+                        <label for="contactName">
+                            Name
+                        </label>
+
+                        <input
+                            type="text"
+                            id="contactName"
+                            name="name"
+                            placeholder="Enter your name"
+                            required
+                        >
+
+                    </div>
+
+
+                    <!-- Email -->
+
+                    <div>
+
+                        <label for="contactEmail">
+                            Email
+                        </label>
+
+                        <input
+                            type="email"
+                            id="contactEmail"
+                            name="email"
+                            placeholder="Enter your email"
+                            required
+                        >
+
+                    </div>
+
+
+                    <!-- Subject -->
+
+                    <div>
+
+                        <label for="contactSubject">
+                            Subject
+                        </label>
+
+                        <input
+                            type="text"
+                            id="contactSubject"
+                            name="subject"
+                            placeholder="Enter subject"
+                            required
+                        >
+
+                    </div>
+
+
+                    <!-- Message -->
+
+                    <div>
+
+                        <label for="contactMessage">
+                            Message
+                        </label>
+
+                        <textarea
+                            id="contactMessage"
+                            name="message"
+                            rows="6"
+                            placeholder="Write your message"
+                            required
+                        ></textarea>
+
+                    </div>
+
+
+                    <button type="submit">
+                        Send Message
+                    </button>
+
+                </form>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+
+    <!-- =========================
+         FOOTER
+    ========================== -->
+
+    <footer>
+
+        <div>
+
+            <h3>TaskManager</h3>
+
+            <p>
+                Manage your tasks. Manage your time.
+            </p>
+
+        </div>
+
+
+        <!-- Footer Links -->
+
+        <div>
+
+            <h4>Quick Links</h4>
+
+            <ul>
+
+                <li>
+                    <a href="#home">
+                        Home
+                    </a>
+                </li>
+
+                <li>
+                    <a href="#tasks">
+                        Tasks
+                    </a>
+                </li>
+
+                <li>
+                    <a href="#about">
+                        About
+                    </a>
+                </li>
+
+                <li>
+                    <a href="#contact">
+                        Contact
+                    </a>
+                </li>
+
+            </ul>
+
+        </div>
+
+
+        <!-- Social Links -->
+
+        <div>
+
+            <h4>Follow Us</h4>
+
+            <ul>
+
+                <li>
+                    <a href="#" aria-label="Facebook">
+                        Facebook
+                    </a>
+                </li>
+
+                <li>
+                    <a href="#" aria-label="Instagram">
+                        Instagram
+                    </a>
+                </li>
+
+                <li>
+                    <a href="#" aria-label="GitHub">
+                        GitHub
+                    </a>
+                </li>
+
+            </ul>
+
+        </div>
+
+
+        <!-- Copyright -->
+
+        <div>
+
+            <p>
+                &copy; 2026 TaskManager. All rights reserved.
+            </p>
+
+        </div>
+
+    </footer>
+<script src="script.js"></script>
+
+</body>
+
+</html>
+
