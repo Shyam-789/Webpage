@@ -1,13 +1,14 @@
-
 import { useState } from "react";
 
-function Login({ onLogin }) {
+function Login({ onLogin, onRegisterClick }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
 
   const handleLogin = async (event) => {
     event.preventDefault();
+    setMessage("");
 
     try {
       const response = await fetch(
@@ -18,8 +19,8 @@ function Login({ onLogin }) {
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            email: email,
-            password: password
+            email,
+            password
           })
         }
       );
@@ -29,11 +30,6 @@ function Login({ onLogin }) {
       if (response.ok) {
         localStorage.setItem("token", data.token);
 
-        setMessage("Login successful!");
-
-        console.log("Token saved:", data.token);
-
-        // Tell App.jsx that login was successful
         if (onLogin) {
           onLogin();
         }
@@ -47,44 +43,97 @@ function Login({ onLogin }) {
   };
 
   return (
-    <div>
-      <h2>Login</h2>
+    <div className="auth-card">
+
+      <div className="auth-icon">
+        ✓
+      </div>
+
+      <h2>Welcome back</h2>
+
+      <p className="auth-subtitle">
+        Sign in to continue managing your tasks.
+      </p>
 
       <form onSubmit={handleLogin}>
-        <div>
-          <label>Email</label>
-          <br />
 
-          <input
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="Enter your email"
-          />
+        <div className="form-group">
+          <label>Email address</label>
+
+          <div className="input-wrapper">
+            <span>✉</span>
+
+            <input
+              type="email"
+              value={email}
+              onChange={(event) =>
+                setEmail(event.target.value)
+              }
+              placeholder="you@example.com"
+              required
+            />
+          </div>
         </div>
 
-        <br />
-
-        <div>
+        <div className="form-group">
           <label>Password</label>
-          <br />
 
-          <input
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="Enter your password"
-          />
+          <div className="input-wrapper">
+            <span>🔒</span>
+
+            <input
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(event) =>
+                setPassword(event.target.value)
+              }
+              placeholder="Enter your password"
+              required
+            />
+
+            <button
+              type="button"
+              className="password-toggle"
+              onClick={() =>
+                setShowPassword(!showPassword)
+              }
+            >
+              {showPassword ? "🙈" : "👁"}
+            </button>
+          </div>
         </div>
 
-        <br />
-
-        <button type="submit">
-          Login
+        <button
+          type="submit"
+          className="auth-button"
+        >
+          Sign in
+          <span>→</span>
         </button>
+
       </form>
 
-      <p>{message}</p>
+      {message && (
+        <p className="auth-message">
+          {message}
+        </p>
+      )}
+
+      <div className="auth-divider">
+        <span>OR</span>
+      </div>
+
+      <p className="switch-text">
+        Don't have an account?
+        <button
+          type="button"
+          onClick={onRegisterClick}
+          className="switch-button"
+        >
+          Create account
+        </button>
+      </p>
+
     </div>
   );
 }

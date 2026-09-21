@@ -1,31 +1,78 @@
 function Navbar() {
-
   const handleLogout = () => {
     localStorage.removeItem("token");
-
     window.location.reload();
   };
 
   return (
-    <nav className="navbar">
-      <div className="navbar-container">
+    <aside className="sidebar">
 
-        <h2>Task Manager</h2>
+      <div className="sidebar-logo">
+        <div className="logo-symbol">✦</div>
+        <span>TASKFLOW</span>
+      </div>
 
-        <ul className="nav-links">
-          <li>Home</li>
-          <li>Tasks</li>
-          <li>About</li>
+      <div className="sidebar-section">
+        <p className="sidebar-title">DASHBOARD</p>
 
-          <li>
-            <button onClick={handleLogout}>
-              Logout
-            </button>
-          </li>
-        </ul>
+        <button className="sidebar-link active">
+          <span>◉</span>
+          Overview
+        </button>
+      </div>
+
+      <div className="sidebar-section">
+        <p className="sidebar-title">WORKSPACE</p>
+
+        <button className="sidebar-link">
+          <span>✓</span>
+          My Tasks
+        </button>
+
+        <button className="sidebar-link">
+          <span>★</span>
+          Important
+        </button>
+      </div>
+
+      <div className="sidebar-section">
+        <p className="sidebar-title">GENERAL</p>
+
+        <button className="sidebar-link">
+          <span>⚙</span>
+          Settings
+        </button>
+
+        <button className="sidebar-link">
+          <span>?</span>
+          Help
+        </button>
+      </div>
+
+      <div className="sidebar-bottom">
+
+        <div className="account-box">
+          <div className="account-avatar">
+            U
+          </div>
+
+          <div>
+            <strong>My Account</strong>
+            <small>Personal workspace</small>
+          </div>
+        </div>
+
+        <button
+          className="logout-button"
+          onClick={handleLogout}
+        >
+          <span>↪</span>
+          Logout
+        </button>
 
       </div>
-    </nav>
+
+    </aside>
   );
 }
 
