@@ -5,7 +5,10 @@ const User = require("../models/User");
 
 const router = express.Router();
 
+// =========================
 // Register user
+// =========================
+
 router.post("/register", async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -86,21 +89,36 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    // Create JWT token
-    const token = jwt.sign(
+    // Create short-lived access token
+    const accessToken = jwt.sign(
       {
         userId: user._id
       },
       process.env.JWT_SECRET,
       {
-        expiresIn: "1d"
+        expiresIn: "15m"
+      }
+    );
+
+    // Create long-lived refresh token
+    const refreshToken = jwt.sign(
+      {
+        userId: user._id
+      },
+      process.env.JWT_REFRESH_SECRET,
+      {
+        expiresIn: "30d"
       }
     );
 
     // Send response
     res.json({
       message: "Login successful",
-      token: token,
+
+      accessToken: accessToken,
+
+      refreshToken: refreshToken,
+
       user: {
         id: user._id,
         name: user.name,
@@ -112,6 +130,53 @@ router.post("/login", async (req, res) => {
     res.status(500).json({
       message: "Login failed",
       error: error.message
+    });
+  }
+});
+
+
+// =========================
+// Refresh Access Token
+// =========================
+
+router.post("/refresh", (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(401).json({
+        message: "Refresh token required"
+      });
+    }
+
+    if (!process.env.JWT_REFRESH_SECRET) {
+      return res.status(500).json({
+        message: "JWT_REFRESH_SECRET is not configured"
+      });
+    }
+
+    const decoded = jwt.verify(
+      refreshToken,
+      process.env.JWT_REFRESH_SECRET
+    );
+
+    const newAccessToken = jwt.sign(
+      {
+        userId: decoded.userId
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "15m"
+      }
+    );
+
+    res.json({
+      accessToken: newAccessToken
+    });
+
+  } catch (error) {
+    return res.status(401).json({
+      message: "Invalid or expired refresh token"
     });
   }
 });
