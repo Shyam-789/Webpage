@@ -13,6 +13,11 @@ const taskSchema = new mongoose.Schema(
       default: false
     },
 
+    reminderAt: {
+      type: Date,
+      default: null
+    },
+
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

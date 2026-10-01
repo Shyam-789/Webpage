@@ -14,16 +14,15 @@ const {
 
 const app = express();
 
-
 // ===============================
 // CORS
 // ===============================
 
 app.use((req, res, next) => {
   res.setHeader(
-  "Access-Control-Allow-Origin",
-  "*"
-);
+    "Access-Control-Allow-Origin",
+    "*"
+  );
 
   res.setHeader(
     "Access-Control-Allow-Methods",
@@ -42,20 +41,17 @@ app.use((req, res, next) => {
   next();
 });
 
-
 // ===============================
 // JSON Middleware
 // ===============================
 
 app.use(express.json());
 
-
 // ===============================
 // Authentication Routes
 // ===============================
 
 app.use("/auth", authRoutes);
-
 
 // ===============================
 // Home Route
@@ -65,14 +61,13 @@ app.get("/", (req, res) => {
   res.send("Task Manager API is running");
 });
 
-
 // ===============================
 // GET All Tasks
 // ===============================
 
 app.get("/tasks", authMiddleware, async (req, res) => {
   try {
-   const tasks = await getTasks(req.userId);
+    const tasks = await getTasks(req.userId);
 
     res.json(tasks);
 
@@ -84,14 +79,13 @@ app.get("/tasks", authMiddleware, async (req, res) => {
   }
 });
 
-
 // ===============================
 // POST Add Task
 // ===============================
 
 app.post("/tasks", authMiddleware, async (req, res) => {
   try {
-    const { text } = req.body;
+    const { text, reminderAt } = req.body;
 
     if (!text) {
       return res.status(400).json({
@@ -99,7 +93,11 @@ app.post("/tasks", authMiddleware, async (req, res) => {
       });
     }
 
-   const newTask = await addTask(text, req.userId);
+    const newTask = await addTask(
+      text,
+      req.userId,
+      reminderAt
+    );
 
     res.status(201).json(newTask);
 
@@ -111,16 +109,20 @@ app.post("/tasks", authMiddleware, async (req, res) => {
   }
 });
 
-
 // ===============================
 // PUT Edit Task
 // ===============================
 
 app.put("/tasks/:id", authMiddleware, async (req, res) => {
   try {
-    const { text } = req.body;
+    const { text, reminderAt } = req.body;
 
-    const updatedTask = await editTask(req.params.id, text, req.userId);
+    const updatedTask = await editTask(
+      req.params.id,
+      text,
+      req.userId,
+      reminderAt
+    );
 
     if (!updatedTask) {
       return res.status(404).json({
@@ -138,14 +140,16 @@ app.put("/tasks/:id", authMiddleware, async (req, res) => {
   }
 });
 
-
 // ===============================
 // PATCH Complete / Uncomplete
 // ===============================
 
 app.patch("/tasks/:id", authMiddleware, async (req, res) => {
   try {
-    const updatedTask = await toggleTask(req.params.id, req.userId);
+    const updatedTask = await toggleTask(
+      req.params.id,
+      req.userId
+    );
 
     if (!updatedTask) {
       return res.status(404).json({
@@ -163,14 +167,16 @@ app.patch("/tasks/:id", authMiddleware, async (req, res) => {
   }
 });
 
-
 // ===============================
 // DELETE One Task
 // ===============================
 
 app.delete("/tasks/:id", authMiddleware, async (req, res) => {
   try {
-    const deletedTask = await deleteTask(req.params.id, req.userId);
+    const deletedTask = await deleteTask(
+      req.params.id,
+      req.userId
+    );
 
     if (!deletedTask) {
       return res.status(404).json({
@@ -189,7 +195,6 @@ app.delete("/tasks/:id", authMiddleware, async (req, res) => {
     });
   }
 });
-
 
 // ===============================
 // DELETE All Tasks
@@ -211,13 +216,11 @@ app.delete("/tasks", authMiddleware, async (req, res) => {
   }
 });
 
-
 // ===============================
 // Connect MongoDB
 // ===============================
 
 connectDB();
-
 
 // ===============================
 // Start Server
