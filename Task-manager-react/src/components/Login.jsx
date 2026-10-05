@@ -1,95 +1,175 @@
+
 import { useState } from "react";
 
-function Login({ onLogin, onRegisterClick }) {
+function Login({
+  onLogin,
+  onRegisterClick,
+  onForgotPassword
+}) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
- const handleLogin = async (event) => {
-  event.preventDefault();
-  setMessage("");
+  const handleSubmit = async (event) => {
+    event.preventDefault();
 
-  try {
-    const response = await fetch(
-      `${import.meta.env.VITE_API_URL}/auth/login`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          email,
-          password
-        })
-      }
-    );
-
-    const data = await response.json();
-
-    if (response.ok) {
-      localStorage.setItem("token", data.token);
-
-      if (onLogin) {
-        onLogin();
-      }
-    } else {
-      setMessage(data.message);
+    if (!email.trim() || !password) {
+      setMessage("Please enter email and password.");
+      return;
     }
-  } catch (error) {
-    console.error(error);
-    setMessage("Server error. Please try again.");
-  }
-};
 
+    setLoading(true);
+    setMessage("");
 
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/auth/login`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            email: email.trim(),
+            password
+          })
+        }
+      );
+
+      const contentType =
+        response.headers.get("content-type") || "";
+
+      const data =
+        contentType.includes("application/json")
+          ? await response.json()
+          : {};
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Login failed"
+        );
+      }
+
+      // Make sure backend returned both tokens
+      if (!data.accessToken || !data.refreshToken) {
+        throw new Error(
+          "Login successful, but authentication tokens were not received."
+        );
+      }
+
+      // =========================
+      // SAVE ACCESS TOKEN
+      // =========================
+
+      sessionStorage.setItem(
+        "accessToken",
+        data.accessToken
+      );
+
+      // =========================
+      // SAVE REFRESH TOKEN
+      // =========================
+
+      sessionStorage.setItem(
+        "refreshToken",
+        data.refreshToken
+      );
+
+      // =========================
+      // SAVE CURRENT USER
+      // =========================
+
+      if (data.user) {
+        sessionStorage.setItem(
+          "taskflowUser",
+          JSON.stringify({
+            id: data.user.id,
+            name: data.user.name,
+            email: data.user.email
+          })
+        );
+      }
+
+      // =========================
+      // LOGIN SUCCESS
+      // =========================
+
+      onLogin();
+
+    } catch (error) {
+      console.error("Login error:", error);
+      setMessage(error.message);
+
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="auth-card">
 
+      {/* Logo */}
       <div className="auth-icon">
         ✓
       </div>
 
+      {/* Heading */}
       <h2>Welcome back</h2>
 
       <p className="auth-subtitle">
         Sign in to continue managing your tasks.
       </p>
 
-      <form onSubmit={handleLogin}>
+      {/* Login Form */}
+      <form onSubmit={handleSubmit}>
 
+        {/* Email */}
         <div className="form-group">
-          <label>Email address</label>
+          <label htmlFor="login-email">
+            Email address
+          </label>
 
           <div className="input-wrapper">
             <span>✉</span>
 
             <input
+              id="login-email"
               type="email"
               value={email}
               onChange={(event) =>
                 setEmail(event.target.value)
               }
               placeholder="you@example.com"
+              autoComplete="email"
               required
             />
           </div>
         </div>
 
+        {/* Password */}
         <div className="form-group">
-          <label>Password</label>
+          <label htmlFor="login-password">
+            Password
+          </label>
 
           <div className="input-wrapper">
             <span>🔒</span>
 
             <input
-              type={showPassword ? "text" : "password"}
+              id="login-password"
+              type={
+                showPassword
+                  ? "text"
+                  : "password"
+              }
               value={password}
               onChange={(event) =>
                 setPassword(event.target.value)
               }
               placeholder="Enter your password"
+              autoComplete="current-password"
               required
             />
 
@@ -99,34 +179,61 @@ function Login({ onLogin, onRegisterClick }) {
               onClick={() =>
                 setShowPassword(!showPassword)
               }
+              aria-label={
+                showPassword
+                  ? "Hide password"
+                  : "Show password"
+              }
             >
               {showPassword ? "🙈" : "👁"}
             </button>
           </div>
+
+          {/* Forgot Password */}
+          <div className="forgot-password">
+            <button
+              type="button"
+              className="forgot-password-button"
+              onClick={onForgotPassword}
+            >
+              Forgot password?
+            </button>
+          </div>
         </div>
 
+        {/* Login Button */}
         <button
           type="submit"
           className="auth-button"
+          disabled={loading}
         >
-          Sign in
-          <span>→</span>
+          {loading
+            ? "Signing in..."
+            : "Sign in"}
+
+          {!loading && (
+            <span>→</span>
+          )}
         </button>
 
       </form>
 
+      {/* Error / Message */}
       {message && (
         <p className="auth-message">
           {message}
         </p>
       )}
 
+      {/* Divider */}
       <div className="auth-divider">
         <span>OR</span>
       </div>
 
+      {/* Register */}
       <p className="switch-text">
         Don't have an account?
+
         <button
           type="button"
           onClick={onRegisterClick}
@@ -141,3 +248,4 @@ function Login({ onLogin, onRegisterClick }) {
 }
 
 export default Login;
+

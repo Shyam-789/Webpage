@@ -1,63 +1,553 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate
+} from "react-router-dom";
+
+import { SettingsProvider } from "./context/SettingsProvider";
+import { useSettings } from "./context/useSettings";
 
 import Login from "./components/Login";
 import Register from "./components/Register";
+import ForgotPassword from "./components/ForgotPassword";
+import ResetPassword from "./components/ResetPassword";
 import Navbar from "./components/Navbar";
-import TaskInput from "./components/TaskInput";
-import TaskList from "./components/TaskList";
+
+import Dashboard from "./pages/Dashboard";
+import MyTasks from "./pages/MyTasks";
+import DailyProcess from "./pages/DailyProcess";
+import Calendar from "./pages/Calendar";
+import Analytics from "./pages/Analytics";
+import Categories from "./pages/Categories";
+import Profile from "./pages/Profile";
+import Settings from "./pages/Settings";
+import Rating from "./pages/Rating";
+
+import { showNotification } from "./utils/notifications";
+
+import {
+  startReminderChecker,
+  stopReminderChecker
+} from "./utils/reminderChecker";
 
 import "./App.css";
 
-function App() {
+// =========================================================
+// APP CONTENT
+// =========================================================
+
+function AppContent() {
+  const { language } = useSettings();
+
+  // =========================================================
+  // LANGUAGE TEXT
+  // =========================================================
+
+  const text = {
+    English: {
+      goodMorning: "Good morning 👋",
+      goodAfternoon: "Good afternoon ☀️",
+      goodEvening: "Good evening 🌆",
+      goodNight: "Good night 🌙",
+
+      loading: "Loading...",
+      checkingSession: "Checking your session...",
+
+      organizeWork: "Organize your work.",
+      getThingsDone: "Get things done.",
+      brandDescription:
+        "A simple and powerful task manager designed to help you stay organized, focused and productive.",
+
+      manageTasks: "Manage your tasks",
+      manageTasksDescription:
+        "Create, edit and organize your work.",
+
+      trackProgress: "Track your progress",
+      trackProgressDescription:
+        "See completed and pending tasks.",
+
+      stayProductive: "Stay productive",
+      stayProductiveDescription:
+        "Keep everything in one place.",
+
+      footer:
+        "© 2026 TaskFlow. Built for productivity.",
+
+      taskAdded: "Task Added ✅",
+      taskAddedBody: "was added successfully.",
+
+      taskCompleted: "Task Completed 🎉",
+      taskCompletedBody: "has been completed.",
+
+      taskReopened: "Task Reopened 🔄",
+      taskReopenedBody: "has been reopened.",
+
+      taskDeleted: "Task Deleted 🗑️",
+      taskDeletedBody: "was deleted successfully.",
+
+      taskDeletedGeneric:
+        "The task was deleted successfully.",
+
+      allTasksCleared: "All Tasks Cleared 🗑️",
+      allTasksClearedBody:
+        "All your tasks have been cleared successfully."
+    },
+
+    "বাংলা": {
+      goodMorning: "সুপ্রভাত 👋",
+      goodAfternoon: "শুভ অপরাহ্ন ☀️",
+      goodEvening: "শুভ সন্ধ্যা 🌆",
+      goodNight: "শুভ রাত্রি 🌙",
+
+      loading: "লোড হচ্ছে...",
+      checkingSession: "আপনার সেশন যাচাই করা হচ্ছে...",
+
+      organizeWork: "আপনার কাজ সংগঠিত করুন।",
+      getThingsDone: "কাজ সম্পন্ন করুন।",
+      brandDescription:
+        "একটি সহজ এবং শক্তিশালী টাস্ক ম্যানেজার যা আপনাকে সংগঠিত, মনোযোগী এবং উৎপাদনশীল থাকতে সাহায্য করে।",
+
+      manageTasks: "আপনার কাজ পরিচালনা করুন",
+      manageTasksDescription:
+        "আপনার কাজ তৈরি, সম্পাদনা এবং সংগঠিত করুন।",
+
+      trackProgress: "আপনার অগ্রগতি দেখুন",
+      trackProgressDescription:
+        "সম্পন্ন এবং অসম্পন্ন কাজ দেখুন।",
+
+      stayProductive: "উৎপাদনশীল থাকুন",
+      stayProductiveDescription:
+        "সবকিছু এক জায়গায় রাখুন।",
+
+      footer:
+        "© ২০২৬ TaskFlow। উৎপাদনশীলতার জন্য তৈরি।",
+
+      taskAdded: "কাজ যোগ করা হয়েছে ✅",
+      taskAddedBody: "সফলভাবে যোগ করা হয়েছে।",
+
+      taskCompleted: "কাজ সম্পন্ন হয়েছে 🎉",
+      taskCompletedBody: "সম্পন্ন হয়েছে।",
+
+      taskReopened: "কাজ আবার খোলা হয়েছে 🔄",
+      taskReopenedBody: "আবার খোলা হয়েছে।",
+
+      taskDeleted: "কাজ মুছে ফেলা হয়েছে 🗑️",
+      taskDeletedBody: "সফলভাবে মুছে ফেলা হয়েছে.",
+
+      taskDeletedGeneric:
+        "কাজটি সফলভাবে মুছে ফেলা হয়েছে।",
+
+      allTasksCleared: "সব কাজ মুছে ফেলা হয়েছে 🗑️",
+      allTasksClearedBody:
+        "আপনার সব কাজ সফলভাবে মুছে ফেলা হয়েছে।"
+    },
+
+    "हिन्दी": {
+      goodMorning: "सुप्रभात 👋",
+      goodAfternoon: "शुभ दोपहर ☀️",
+      goodEvening: "शुभ संध्या 🌆",
+      goodNight: "शुभ रात्रि 🌙",
+
+      loading: "लोड हो रहा है...",
+      checkingSession: "आपका सत्र जांचा जा रहा है...",
+
+      organizeWork: "अपने काम को व्यवस्थित करें।",
+      getThingsDone: "अपने काम पूरे करें।",
+      brandDescription:
+        "एक सरल और शक्तिशाली टास्क मैनेजर जो आपको व्यवस्थित, केंद्रित और उत्पादक बने रहने में मदद करता है।",
+
+      manageTasks: "अपने कार्यों को प्रबंधित करें",
+      manageTasksDescription:
+        "अपने काम को बनाएँ, संपादित करें और व्यवस्थित करें।",
+
+      trackProgress: "अपनी प्रगति देखें",
+      trackProgressDescription:
+        "पूर्ण और लंबित कार्य देखें।",
+
+      stayProductive: "उत्पादक बने रहें",
+      stayProductiveDescription:
+        "सब कुछ एक ही जगह रखें।",
+
+      footer:
+        "© 2026 TaskFlow। उत्पादकता के लिए बनाया गया।",
+
+      taskAdded: "कार्य जोड़ा गया ✅",
+      taskAddedBody: "सफलतापूर्वक जोड़ा गया।",
+
+      taskCompleted: "कार्य पूर्ण हुआ 🎉",
+      taskCompletedBody: "पूर्ण हो गया है।",
+
+      taskReopened: "कार्य फिर से खोला गया 🔄",
+      taskReopenedBody: "फिर से खोला गया है।",
+
+      taskDeleted: "कार्य हटाया गया 🗑️",
+      taskDeletedBody: "सफलतापूर्वक हटा दिया गया।",
+
+      taskDeletedGeneric:
+        "कार्य सफलतापूर्वक हटा दिया गया।",
+
+      allTasksCleared: "सभी कार्य हटाए गए 🗑️",
+      allTasksClearedBody:
+        "आपके सभी कार्य सफलतापूर्वक हटा दिए गए हैं।"
+    }
+  };
+
+  const currentText =
+    text[language] || text.English;
+
+  // =========================================================
+  // AUTH STATE
+  // =========================================================
+
   const [isLoggedIn, setIsLoggedIn] = useState(
-    !!localStorage.getItem("token")
+    !!sessionStorage.getItem("accessToken") ||
+    !!sessionStorage.getItem("refreshToken")
   );
 
+  const [authChecking, setAuthChecking] = useState(true);
+
   const [showRegister, setShowRegister] = useState(false);
+
+  // =========================================================
+  // FORGOT PASSWORD STATE
+  // =========================================================
+
+  const [showForgotPassword, setShowForgotPassword] =
+    useState(false);
+
+  // =========================================================
+  // SIDEBAR STATE
+  // =========================================================
+
+  const [sidebarCollapsed, setSidebarCollapsed] =
+    useState(false);
+
+  // =========================================================
+  // TASK STATE
+  // =========================================================
 
   const [tasks, setTasks] = useState([]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
 
-  // =========================
-  // LOAD TASKS
-  // =========================
+  // =========================================================
+  // CURRENT TIME
+  // =========================================================
+
+  const [currentTime, setCurrentTime] =
+    useState(new Date());
+
+  // =========================================================
+  // API URL
+  // =========================================================
+
+  const API_URL = import.meta.env.VITE_API_URL;
+
+  // =========================================================
+  // REFRESH ACCESS TOKEN
+  // =========================================================
+
+  const refreshAccessToken = useCallback(async () => {
+    const refreshToken =
+      sessionStorage.getItem("refreshToken");
+
+    if (!refreshToken) {
+      return false;
+    }
+
+    try {
+      const response = await fetch(
+        `${API_URL}/auth/refresh`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            refreshToken
+          })
+        }
+      );
+
+      const contentType =
+        response.headers.get("content-type") || "";
+
+      const data = contentType.includes(
+        "application/json"
+      )
+        ? await response.json()
+        : {};
+
+      if (!response.ok || !data.accessToken) {
+        throw new Error(
+          data.message || "Unable to refresh token"
+        );
+      }
+
+      sessionStorage.setItem(
+        "accessToken",
+        data.accessToken
+      );
+
+      return true;
+    } catch (error) {
+      console.error(
+        "Token refresh failed:",
+        error
+      );
+
+      sessionStorage.removeItem("accessToken");
+      sessionStorage.removeItem("refreshToken");
+      sessionStorage.removeItem("taskflowUser");
+
+      setIsLoggedIn(false);
+
+      return false;
+    }
+  }, [API_URL]);
+
+  // =========================================================
+  // CHECK AUTH ON APP START
+  // =========================================================
 
   useEffect(() => {
-    if (!isLoggedIn) {
-      return;
-    }
+    const checkAuthentication = async () => {
+      const accessToken =
+        sessionStorage.getItem("accessToken");
 
-    const token = localStorage.getItem("token");
+      const refreshToken =
+        sessionStorage.getItem("refreshToken");
 
-    if (!token) {
-      return;
-    }
-
-   fetch(`${import.meta.env.VITE_API_URL}/tasks`, {
-      cache: "no-store",
-      headers: {
-        Authorization: `Bearer ${token}`
+      if (!accessToken && !refreshToken) {
+        setIsLoggedIn(false);
+        setAuthChecking(false);
+        return;
       }
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Failed to load tasks");
+
+      if (accessToken) {
+        setIsLoggedIn(true);
+        setAuthChecking(false);
+        return;
+      }
+
+      if (refreshToken) {
+        const refreshed =
+          await refreshAccessToken();
+
+        if (refreshed) {
+          setIsLoggedIn(true);
+        } else {
+          setIsLoggedIn(false);
         }
 
-        return response.json();
-      })
-      .then((data) => {
-        setTasks(data);
-      })
-      .catch((error) => {
-        console.log("Error loading tasks:", error);
-      });
-  }, [isLoggedIn]);
+        setAuthChecking(false);
+        return;
+      }
 
-  // =========================
+      setIsLoggedIn(false);
+      setAuthChecking(false);
+    };
+
+    checkAuthentication();
+  }, [refreshAccessToken]);
+
+  // =========================================================
+  // AUTHENTICATED API REQUEST
+  // =========================================================
+
+  const apiFetch = useCallback(
+    async (url, options = {}) => {
+      let accessToken =
+        sessionStorage.getItem("accessToken");
+
+      if (!accessToken) {
+        const refreshed =
+          await refreshAccessToken();
+
+        if (!refreshed) {
+          throw new Error(
+            "Session expired. Please login again."
+          );
+        }
+
+        accessToken =
+          sessionStorage.getItem("accessToken");
+
+        if (!accessToken) {
+          throw new Error(
+            "Unable to get new access token."
+          );
+        }
+      }
+
+      let response = await fetch(
+        url,
+        {
+          ...options,
+          headers: {
+            ...(options.headers || {}),
+            Authorization: `Bearer ${accessToken}`
+          }
+        }
+      );
+
+      if (response.status === 401) {
+        const refreshed =
+          await refreshAccessToken();
+
+        if (!refreshed) {
+          throw new Error(
+            "Session expired. Please login again."
+          );
+        }
+
+        accessToken =
+          sessionStorage.getItem("accessToken");
+
+        if (!accessToken) {
+          throw new Error(
+            "Unable to get new access token."
+          );
+        }
+
+        response = await fetch(
+          url,
+          {
+            ...options,
+            headers: {
+              ...(options.headers || {}),
+              Authorization: `Bearer ${accessToken}`
+            }
+          }
+        );
+      }
+
+      return response;
+    },
+    [refreshAccessToken]
+  );
+
+  // =========================================================
+  // LOAD TASKS
+  // =========================================================
+
+  useEffect(() => {
+    if (!isLoggedIn || authChecking) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadTasks = async () => {
+      try {
+        const response = await apiFetch(
+          `${API_URL}/tasks`,
+          {
+            cache: "no-store"
+          }
+        );
+
+        const data =
+          response.headers
+            .get("content-type")
+            ?.includes("application/json")
+            ? await response.json()
+            : null;
+
+        if (!response.ok) {
+          throw new Error(
+            data?.message ||
+              "Failed to load tasks"
+          );
+        }
+
+        if (!cancelled) {
+          setTasks(data || []);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error(
+            "Error loading tasks:",
+            error
+          );
+        }
+      }
+    };
+
+    loadTasks();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isLoggedIn,
+    authChecking,
+    API_URL,
+    apiFetch
+  ]);
+
+  // =========================================================
+  // TASK REMINDER CHECKER
+  // =========================================================
+
+  useEffect(() => {
+    if (!isLoggedIn || authChecking) {
+      stopReminderChecker();
+      return;
+    }
+
+    startReminderChecker(tasks);
+
+    return () => {
+      stopReminderChecker();
+    };
+  }, [
+    tasks,
+    isLoggedIn,
+    authChecking
+  ]);
+
+  // =========================================================
+  // UPDATE CLOCK
+  // =========================================================
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  // =========================================================
+  // GREETING
+  // =========================================================
+
+  const currentHour = currentTime.getHours();
+
+  let greeting;
+
+  if (currentHour >= 5 && currentHour < 12) {
+    greeting = currentText.goodMorning;
+  } else if (
+    currentHour >= 12 &&
+    currentHour < 17
+  ) {
+    greeting = currentText.goodAfternoon;
+  } else if (
+    currentHour >= 17 &&
+    currentHour < 21
+  ) {
+    greeting = currentText.goodEvening;
+  } else {
+    greeting = currentText.goodNight;
+  }
+
+  // =========================================================
   // COUNTERS
-  // =========================
+  // =========================================================
 
   const completedCount = tasks.filter(
     (task) => task.completed
@@ -73,630 +563,776 @@ function App() {
           (completedCount / tasks.length) * 100
         );
 
-  // =========================
+  // =========================================================
   // ADD TASK
-  // =========================
+  // =========================================================
 
-  const addTask = async (taskText) => {
+  const addTask = async (
+    taskText,
+    reminderAt = null
+  ) => {
+    const tempId = `temp-${Date.now()}`;
+
+    const tempTask = {
+      _id: tempId,
+      text: taskText,
+      completed: false,
+      reminderAt: reminderAt,
+      createdAt: new Date().toISOString()
+    };
+
+    setTasks((oldTasks) => [
+      tempTask,
+      ...oldTasks
+    ]);
+
     try {
-      const token = localStorage.getItem("token");
-
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/tasks`,
+      const response = await apiFetch(
+        `${API_URL}/tasks`,
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`
+            "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            text: taskText
+            text: taskText,
+
+            reminderAt: reminderAt
+              ? new Date(
+                  reminderAt
+                ).toISOString()
+              : null
           })
         }
       );
 
-      if (!response.ok) {
-        throw new Error("Failed to add task");
-      }
-
-      const newTask = await response.json();
-
-      setTasks((oldTasks) => [
-        ...oldTasks,
-        newTask
-      ]);
-    } catch (error) {
-      console.log("Error adding task:", error);
-    }
-  };
-
-  // =========================
-  // TOGGLE TASK
-  // =========================
-
-  const toggleTask = async (id) => {
-    try {
-      const token = localStorage.getItem("token");
-
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/tasks/${id}`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      );
+      const data =
+        response.headers
+          .get("content-type")
+          ?.includes("application/json")
+          ? await response.json()
+          : null;
 
       if (!response.ok) {
-        throw new Error("Failed to update task");
+        throw new Error(
+          data?.message ||
+            "Failed to add task"
+        );
       }
-
-      const updatedTask = await response.json();
 
       setTasks((oldTasks) =>
         oldTasks.map((task) =>
-          task._id === id
-            ? updatedTask
+          task._id === tempId
+            ? data
             : task
         )
       );
-    } catch (error) {
-      console.log("Error updating task:", error);
-    }
-  };
 
-  // =========================
-  // DELETE TASK
-  // =========================
-
-  const deleteTask = async (id) => {
-    try {
-      const token = localStorage.getItem("token");
-
-      const response = await fetch(
-       `${import.meta.env.VITE_API_URL}/tasks/${id}`,
+      showNotification(
+        currentText.taskAdded,
         {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
+          body: `"${data.text}" ${currentText.taskAddedBody}`
         }
       );
-
-      if (!response.ok) {
-        throw new Error("Failed to delete task");
-      }
+    } catch (error) {
+      console.error(
+        "Error adding task:",
+        error
+      );
 
       setTasks((oldTasks) =>
         oldTasks.filter(
-          (task) => task._id !== id
+          (task) => task._id !== tempId
         )
       );
-    } catch (error) {
-      console.log("Error deleting task:", error);
     }
   };
 
-  // =========================
-  // EDIT TASK
-  // =========================
+  // =========================================================
+  // TOGGLE TASK
+  // =========================================================
 
-  const editTask = async (id, newText) => {
+  const toggleTask = async (id) => {
+    const oldTasks = [...tasks];
+
+    setTasks((currentTasks) =>
+      currentTasks.map((task) =>
+        task._id === id
+          ? {
+              ...task,
+              completed: !task.completed
+            }
+          : task
+      )
+    );
+
     try {
-      const token = localStorage.getItem("token");
+      const response = await apiFetch(
+        `${API_URL}/tasks/${id}`,
+        {
+          method: "PATCH"
+        }
+      );
 
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/tasks/${id}`,
+      const data =
+        response.headers
+          .get("content-type")
+          ?.includes("application/json")
+          ? await response.json()
+          : null;
+
+      if (!response.ok) {
+        throw new Error(
+          data?.message ||
+            "Failed to update task"
+        );
+      }
+
+      setTasks((currentTasks) =>
+        currentTasks.map((task) =>
+          task._id === id
+            ? data
+            : task
+        )
+      );
+
+      showNotification(
+        data.completed
+          ? currentText.taskCompleted
+          : currentText.taskReopened,
+        {
+          body: data.completed
+            ? `"${data.text}" ${currentText.taskCompletedBody}`
+            : `"${data.text}" ${currentText.taskReopenedBody}`
+        }
+      );
+    } catch (error) {
+      console.error(
+        "Error updating task:",
+        error
+      );
+
+      setTasks(oldTasks);
+    }
+  };
+
+  // =========================================================
+  // DELETE TASK
+  // =========================================================
+
+  const deleteTask = async (id) => {
+    const oldTasks = [...tasks];
+
+    const deletedTask =
+      tasks.find(
+        (task) => task._id === id
+      );
+
+    setTasks((currentTasks) =>
+      currentTasks.filter(
+        (task) => task._id !== id
+      )
+    );
+
+    try {
+      const response = await apiFetch(
+        `${API_URL}/tasks/${id}`,
+        {
+          method: "DELETE"
+        }
+      );
+
+      const data =
+        response.headers
+          .get("content-type")
+          ?.includes("application/json")
+          ? await response.json()
+          : null;
+
+      if (!response.ok) {
+        throw new Error(
+          data?.message ||
+            "Failed to delete task"
+        );
+      }
+
+      showNotification(
+        currentText.taskDeleted,
+        {
+          body: deletedTask?.text
+            ? `"${deletedTask.text}" ${currentText.taskDeletedBody}`
+            : currentText.taskDeletedGeneric
+        }
+      );
+    } catch (error) {
+      console.error(
+        "Error deleting task:",
+        error
+      );
+
+      setTasks(oldTasks);
+    }
+  };
+
+  // =========================================================
+  // EDIT TASK
+  // =========================================================
+
+  const editTask = async (
+    id,
+    newText
+  ) => {
+    const oldTasks = [...tasks];
+
+    const existingTask =
+      oldTasks.find(
+        (task) => task._id === id
+      );
+
+    setTasks((currentTasks) =>
+      currentTasks.map((task) =>
+        task._id === id
+          ? {
+              ...task,
+              text: newText
+            }
+          : task
+      )
+    );
+
+    try {
+      const response = await apiFetch(
+        `${API_URL}/tasks/${id}`,
         {
           method: "PUT",
           headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`
+            "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            text: newText
+            text: newText,
+            reminderAt:
+              existingTask?.reminderAt ||
+              null
           })
         }
       );
 
+      const data =
+        response.headers
+          .get("content-type")
+          ?.includes("application/json")
+          ? await response.json()
+          : null;
+
       if (!response.ok) {
-        throw new Error("Failed to edit task");
+        throw new Error(
+          data?.message ||
+            "Failed to edit task"
+        );
       }
 
-      const updatedTask = await response.json();
-
-      setTasks((oldTasks) =>
-        oldTasks.map((task) =>
+      setTasks((currentTasks) =>
+        currentTasks.map((task) =>
           task._id === id
-            ? updatedTask
+            ? data
             : task
         )
       );
     } catch (error) {
-      console.log("Error editing task:", error);
+      console.error(
+        "Error editing task:",
+        error
+      );
+
+      setTasks(oldTasks);
     }
   };
 
-  // =========================
-  // CLEAR TASKS
-  // =========================
+  // =========================================================
+  // CLEAR ALL TASKS
+  // =========================================================
 
   const clearTasks = async () => {
     try {
-      const token = localStorage.getItem("token");
-
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/tasks`,
+      const response = await apiFetch(
+        `${API_URL}/tasks`,
         {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
+          method: "DELETE"
         }
       );
 
       if (!response.ok) {
-        throw new Error("Failed to clear tasks");
+        let errorMessage =
+          "Failed to clear tasks";
+
+        try {
+          const data =
+            await response.json();
+
+          if (data.message) {
+            errorMessage =
+              data.message;
+          }
+        } catch {
+          // No JSON response
+        }
+
+        throw new Error(errorMessage);
       }
 
       setTasks([]);
+
+      showNotification(
+        currentText.allTasksCleared,
+        {
+          body:
+            currentText.allTasksClearedBody
+        }
+      );
+
+      console.log(
+        "All tasks cleared successfully"
+      );
     } catch (error) {
-      console.log("Error clearing tasks:", error);
+      console.error(
+        "Error clearing tasks:",
+        error
+      );
     }
   };
 
-  // =========================
-  // FILTER TASKS
-  // =========================
+  // =========================================================
+  // AUTH CHECKING SCREEN
+  // =========================================================
 
-  const filteredTasks = tasks.filter((task) => {
-    const matchesSearch =
-      task.text
-        .toLowerCase()
-        .includes(search.toLowerCase());
-
-    const matchesFilter =
-      filter === "all" ||
-      (filter === "completed" && task.completed) ||
-      (filter === "pending" && !task.completed);
-
-    return matchesSearch && matchesFilter;
-  });
-
-  // =========================
-  // AUTH PAGE
-  // =========================
-
-  if (!isLoggedIn) {
+  if (authChecking) {
     return (
       <div className="auth-page">
 
-        <div className="auth-background-circle circle-one"></div>
-        <div className="auth-background-circle circle-two"></div>
+        <div className="auth-form-container">
 
-        <div className="auth-layout">
+          <div className="auth-card">
 
-          <div className="auth-brand">
+            <h2>
+              Loading...
+            </h2>
 
-            <div className="brand-logo">
-              ✦ TASKFLOW
-            </div>
-
-            <h1>
-              Organize your work.
-              <br />
-              <span>Get things done.</span>
-            </h1>
-
-            <p className="brand-description">
-              A simple and powerful task manager
-              designed to help you stay organized,
-              focused and productive.
+            <p>
+              Checking your session...
             </p>
 
-            <div className="feature-list">
-
-              <div className="feature">
-                <div className="feature-icon">
-                  ✓
-                </div>
-
-                <div>
-                  <strong>
-                    Manage your tasks
-                  </strong>
-
-                  <p>
-                    Create, edit and organize your work.
-                  </p>
-                </div>
-              </div>
-
-              <div className="feature">
-                <div className="feature-icon">
-                  ✓
-                </div>
-
-                <div>
-                  <strong>
-                    Track your progress
-                  </strong>
-
-                  <p>
-                    See completed and pending tasks.
-                  </p>
-                </div>
-              </div>
-
-              <div className="feature">
-                <div className="feature-icon">
-                  ✓
-                </div>
-
-                <div>
-                  <strong>
-                    Stay productive
-                  </strong>
-
-                  <p>
-                    Keep everything in one place.
-                  </p>
-                </div>
-              </div>
-
-            </div>
-
           </div>
 
-          <div className="auth-form-container">
-
-            {showRegister ? (
-              <Register
-                onLoginClick={() =>
-                  setShowRegister(false)
-                }
-              />
-            ) : (
-              <Login
-                onLogin={() =>
-                  setIsLoggedIn(true)
-                }
-                onRegisterClick={() =>
-                  setShowRegister(true)
-                }
-              />
-            )}
-
-          </div>
-
-        </div>
-
-        <div className="auth-footer">
-          © 2026 TaskFlow. Built for productivity.
         </div>
 
       </div>
     );
   }
 
-  // =========================
-  // MODERN DASHBOARD
-  // =========================
+  // =========================================================
+  // AUTH PAGE
+  // =========================================================
+
+  if (!isLoggedIn) {
+    return (
+      <Routes>
+
+        {/* FORGOT PASSWORD */}
+
+        <Route
+          path="/forgot-password"
+          element={
+            <div className="auth-page">
+
+              <div className="auth-background-circle circle-one"></div>
+
+              <div className="auth-background-circle circle-two"></div>
+
+              <div className="auth-layout">
+
+                <div className="auth-brand">
+
+                  <div className="brand-logo">
+                    ✦ TASKFLOW
+                  </div>
+
+                  <h1>
+                    Organize your work.
+                    <br />
+                    <span>
+                      Get things done.
+                    </span>
+                  </h1>
+
+                  <p className="brand-description">
+                    A simple and powerful task manager
+                    designed to help you stay organized,
+                    focused and productive.
+                  </p>
+
+                </div>
+
+                <div className="auth-form-container">
+
+                  <ForgotPassword
+                    onBackToLogin={() => {
+                      setShowForgotPassword(false);
+                      window.history.pushState(
+                        {},
+                        "",
+                        "/"
+                      );
+                      window.dispatchEvent(
+                        new PopStateEvent("popstate")
+                      );
+                    }}
+                  />
+
+                </div>
+
+              </div>
+
+              <div className="auth-footer">
+                © 2026 TaskFlow. Built for productivity.
+              </div>
+
+            </div>
+          }
+        />
+
+        {/* RESET PASSWORD */}
+
+        <Route
+          path="/reset-password/:token"
+          element={
+            <ResetPassword />
+          }
+        />
+
+        {/* NORMAL LOGIN / REGISTER */}
+
+        <Route
+          path="*"
+          element={
+            <div className="auth-page">
+
+              <div className="auth-background-circle circle-one"></div>
+
+              <div className="auth-background-circle circle-two"></div>
+
+              <div className="auth-layout">
+
+                {/* LEFT SIDE */}
+
+                <div className="auth-brand">
+
+                  <div className="brand-logo">
+                    ✦ TASKFLOW
+                  </div>
+
+                  <h1>
+                    Organize your work.
+                    <br />
+                    <span>
+                      Get things done.
+                    </span>
+                  </h1>
+
+                  <p className="brand-description">
+                    A simple and powerful task manager
+                    designed to help you stay organized,
+                    focused and productive.
+                  </p>
+
+                  <div className="feature-list">
+
+                    <div className="feature">
+
+                      <div className="feature-icon">
+                        ✓
+                      </div>
+
+                      <div>
+
+                        <strong>
+                          Manage your tasks
+                        </strong>
+
+                        <p>
+                          Create, edit and organize
+                          your work.
+                        </p>
+
+                      </div>
+
+                    </div>
+
+                    <div className="feature">
+
+                      <div className="feature-icon">
+                        ✓
+                      </div>
+
+                      <div>
+
+                        <strong>
+                          Track your progress
+                        </strong>
+
+                        <p>
+                          See completed and pending
+                          tasks.
+                        </p>
+
+                      </div>
+
+                    </div>
+
+                    <div className="feature">
+
+                      <div className="feature-icon">
+                        ✓
+                      </div>
+
+                      <div>
+
+                        <strong>
+                          Stay productive
+                        </strong>
+
+                        <p>
+                          Keep everything in one place.
+                        </p>
+
+                      </div>
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+                {/* RIGHT SIDE */}
+
+                <div className="auth-form-container">
+
+                  {showForgotPassword ? (
+
+                    <ForgotPassword
+                      onBackToLogin={() => {
+                        setShowForgotPassword(false);
+                      }}
+                    />
+
+                  ) : showRegister ? (
+
+                    <Register
+                      onLoginClick={() =>
+                        setShowRegister(false)
+                      }
+                    />
+
+                  ) : (
+
+                    <Login
+                      onLogin={() => {
+                        setIsLoggedIn(true);
+                      }}
+                      onRegisterClick={() =>
+                        setShowRegister(true)
+                      }
+                      onForgotPassword={() => {
+                        setShowForgotPassword(true);
+                      }}
+                    />
+
+                  )}
+
+                </div>
+
+              </div>
+
+              <div className="auth-footer">
+                © 2026 TaskFlow. Built for productivity.
+              </div>
+
+            </div>
+          }
+        />
+
+      </Routes>
+    );
+  }
+
+  // =========================================================
+  // LOGGED-IN APPLICATION
+  // =========================================================
 
   return (
-    <div className="dashboard">
+    <>
+      <Navbar
+        collapsed={sidebarCollapsed}
+        setCollapsed={setSidebarCollapsed}
+      />
 
-      <Navbar />
+      <div
+        className={
+          sidebarCollapsed
+            ? "app-content collapsed-main"
+            : "app-content"
+        }
+      >
 
-      <main className="dashboard-main">
+        <Routes>
 
-        {/* TOP HEADER */}
+          {/* DASHBOARD */}
 
-        <header className="dashboard-header">
-
-          <div>
-            <p className="dashboard-label">
-              OVERVIEW
-            </p>
-
-            <h1 className="dashboard-title">
-              Good morning 👋
-            </h1>
-
-            <p className="dashboard-subtitle">
-              Stay organized and get things done.
-            </p>
-          </div>
-
-          <div className="header-date">
-            <span>Today</span>
-            <strong>
-              {new Date().toLocaleDateString(
-                "en-US",
-                {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric"
+          <Route
+            path="/"
+            element={
+              <Dashboard
+                tasks={tasks}
+                search={search}
+                setSearch={setSearch}
+                filter={filter}
+                setFilter={setFilter}
+                greeting={greeting}
+                currentTime={currentTime}
+                completedCount={completedCount}
+                pendingCount={pendingCount}
+                completionPercentage={
+                  completionPercentage
                 }
-              )}
-            </strong>
-          </div>
+                addTask={addTask}
+                toggleTask={toggleTask}
+                deleteTask={deleteTask}
+                editTask={editTask}
+                clearTasks={clearTasks}
+              />
+            }
+          />
 
-        </header>
+          {/* MY TASKS */}
 
-
-        {/* STAT CARDS */}
-
-        <section className="dashboard-stats">
-
-          <div className="modern-stat-card">
-
-            <div className="stat-top">
-              <span className="stat-label">
-                TOTAL TASKS
-              </span>
-
-              <div className="stat-icon purple">
-                ✓
-              </div>
-            </div>
-
-            <div className="stat-number">
-              {tasks.length}
-            </div>
-
-            <p className="stat-description">
-              Tasks in your workspace
-            </p>
-
-          </div>
-
-
-          <div className="modern-stat-card">
-
-            <div className="stat-top">
-              <span className="stat-label">
-                COMPLETED
-              </span>
-
-              <div className="stat-icon green">
-                ✓
-              </div>
-            </div>
-
-            <div className="stat-number">
-              {completedCount}
-            </div>
-
-            <p className="stat-description">
-              {completionPercentage}% completion rate
-            </p>
-
-          </div>
-
-
-          <div className="modern-stat-card">
-
-            <div className="stat-top">
-              <span className="stat-label">
-                PENDING
-              </span>
-
-              <div className="stat-icon orange">
-                ◷
-              </div>
-            </div>
-
-            <div className="stat-number">
-              {pendingCount}
-            </div>
-
-            <p className="stat-description">
-              Tasks remaining
-            </p>
-
-          </div>
-
-        </section>
-
-
-        {/* TASK SECTION */}
-
-        <section className="tasks-section">
-
-          <div className="tasks-header">
-
-            <div>
-              <p className="dashboard-label">
-                WORKSPACE
-              </p>
-
-              <h2>
-                My Tasks
-              </h2>
-
-              <p>
-                Manage everything you need to get done.
-              </p>
-            </div>
-
-            <div className="task-count">
-              {tasks.length} tasks
-            </div>
-
-          </div>
-
-
-          {/* SEARCH */}
-
-          <div className="search-container">
-
-            <span className="search-icon">
-              ⌕
-            </span>
-
-            <input
-              className="modern-search"
-              type="text"
-              placeholder="Search your tasks..."
-              value={search}
-              onChange={(event) =>
-                setSearch(event.target.value)
-              }
-            />
-
-          </div>
-
-
-          {/* FILTERS */}
-
-          <div className="task-toolbar">
-
-            <div className="modern-filters">
-
-              <button
-                className={
-                  filter === "all"
-                    ? "filter-button active"
-                    : "filter-button"
-                }
-                onClick={() =>
-                  setFilter("all")
-                }
-              >
-                All
-              </button>
-
-              <button
-                className={
-                  filter === "pending"
-                    ? "filter-button active"
-                    : "filter-button"
-                }
-                onClick={() =>
-                  setFilter("pending")
-                }
-              >
-                Pending
-              </button>
-
-              <button
-                className={
-                  filter === "completed"
-                    ? "filter-button active"
-                    : "filter-button"
-                }
-                onClick={() =>
-                  setFilter("completed")
-                }
-              >
-                Completed
-              </button>
-
-            </div>
-
-            {tasks.length > 0 && (
-              <button
-                className="modern-clear-button"
-                onClick={clearTasks}
-              >
-                Clear all
-              </button>
-            )}
-
-          </div>
-
-
-          {/* ADD TASK */}
-
-          <div className="modern-add-task">
-
-            <TaskInput
-              onAddTask={addTask}
-            />
-
-          </div>
-
-
-          {/* TASK LIST */}
-
-          <div className="modern-task-list">
-
-            {filteredTasks.length > 0 ? (
-
-              <TaskList
-                tasks={filteredTasks}
+          <Route
+            path="/tasks"
+            element={
+              <MyTasks
+                tasks={tasks}
+                onAdd={addTask}
                 onToggle={toggleTask}
                 onDelete={deleteTask}
                 onEdit={editTask}
+                onClear={clearTasks}
               />
+            }
+          />
 
-            ) : (
+          {/* DAILY PROCESS */}
 
-              <div className="empty-state">
+          <Route
+            path="/daily-process"
+            element={
+              <DailyProcess
+                tasks={tasks}
+              />
+            }
+          />
 
-                <div className="empty-icon">
-                  ✓
-                </div>
+          {/* CALENDAR */}
 
-                <h3>
-                  No tasks found
-                </h3>
+          <Route
+            path="/calendar"
+            element={
+              <Calendar
+                tasks={tasks}
+              />
+            }
+          />
 
-                <p>
-                  {search
-                    ? "Try a different search."
-                    : "Add your first task to get started."}
-                </p>
+          {/* ANALYTICS */}
 
-              </div>
+          <Route
+            path="/analytics"
+            element={
+              <Analytics
+                tasks={tasks}
+              />
+            }
+          />
 
-            )}
+          {/* CATEGORIES */}
 
-          </div>
+          <Route
+            path="/categories"
+            element={
+              <Categories
+                tasks={tasks}
+              />
+            }
+          />
 
-        </section>
+          {/* PROFILE */}
 
+          <Route
+            path="/profile"
+            element={
+              <Profile />
+            }
+          />
 
-        {/* PROGRESS */}
+          {/* SETTINGS */}
 
-        <section className="progress-card">
+          <Route
+            path="/settings"
+            element={
+              <Settings />
+            }
+          />
 
-          <div className="progress-info">
+          {/* RATING */}
 
-            <div>
-              <span>
-                Daily progress
-              </span>
+          <Route
+            path="/rating"
+            element={
+              <Rating />
+            }
+          />
 
-              <strong>
-                {completionPercentage}%
-              </strong>
-            </div>
+          {/* UNKNOWN URL */}
 
-            <p>
-              {completedCount} of {tasks.length} tasks completed
-            </p>
+          <Route
+            path="*"
+            element={
+              <Navigate
+                to="/"
+                replace
+              />
+            }
+          />
 
-          </div>
+        </Routes>
 
-          <div className="progress-bar">
+      </div>
+    </>
+  );
+}
 
-            <div
-              className="progress-fill"
-              style={{
-                width: `${completionPercentage}%`
-              }}
-            ></div>
+// =========================================================
+// APP
+// =========================================================
 
-          </div>
+function App() {
+  return (
+    <SettingsProvider>
 
-        </section>
+      <BrowserRouter>
 
-      </main>
+        <AppContent />
 
-    </div>
+      </BrowserRouter>
+
+    </SettingsProvider>
   );
 }
 
