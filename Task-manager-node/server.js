@@ -24,8 +24,21 @@ const app = express();
 // CORS
 // ===============================
 
+const allowedOrigins = [
+  "http://localhost:5173",
+  ...(process.env.FRONTEND_URL || "")
+    .split(",")
+    .map((url) => url.trim().replace(/\/$/, ""))
+    .filter(Boolean)
+];
+
 app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  const origin = req.headers.origin;
+
+  if (origin && allowedOrigins.includes(origin.replace(/\/$/, ""))) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+  }
 
   res.setHeader(
     "Access-Control-Allow-Methods",
@@ -57,8 +70,6 @@ app.use(express.json({ limit: "5mb" }));
 app.use("/auth", authRoutes);
 app.use("/categories", categoryRoutes);
 app.use("/ratings", ratingRoutes);
-
-// NEW: Settings API
 app.use("/settings", settingsRoutes);
 
 // ===============================
@@ -78,9 +89,9 @@ app.get("/tasks", authMiddleware, async (req, res) => {
     const tasks = await getTasks(req.userId);
     res.json(tasks);
   } catch (error) {
+    console.error("Get tasks error:", error.message);
     res.status(500).json({
-      message: "Failed to get tasks",
-      error: error.message
+      message: "Failed to get tasks"
     });
   }
 });
@@ -93,7 +104,7 @@ app.post("/tasks", authMiddleware, async (req, res) => {
   try {
     const { text, reminderAt, categoryId } = req.body;
 
-    if (!text) {
+    if (!text || !text.trim()) {
       return res.status(400).json({
         message: "Task text is required"
       });
@@ -108,9 +119,9 @@ app.post("/tasks", authMiddleware, async (req, res) => {
 
     res.status(201).json(newTask);
   } catch (error) {
+    console.error("Add task error:", error.message);
     res.status(500).json({
-      message: "Failed to add task",
-      error: error.message
+      message: "Failed to add task"
     });
   }
 });
@@ -139,9 +150,9 @@ app.put("/tasks/:id", authMiddleware, async (req, res) => {
 
     res.json(updatedTask);
   } catch (error) {
+    console.error("Edit task error:", error.message);
     res.status(500).json({
-      message: "Failed to edit task",
-      error: error.message
+      message: "Failed to edit task"
     });
   }
 });
@@ -165,9 +176,9 @@ app.patch("/tasks/:id", authMiddleware, async (req, res) => {
 
     res.json(updatedTask);
   } catch (error) {
+    console.error("Toggle task error:", error.message);
     res.status(500).json({
-      message: "Failed to update task",
-      error: error.message
+      message: "Failed to update task"
     });
   }
 });
@@ -193,9 +204,9 @@ app.delete("/tasks/:id", authMiddleware, async (req, res) => {
       message: "Task deleted successfully"
     });
   } catch (error) {
+    console.error("Delete task error:", error.message);
     res.status(500).json({
-      message: "Failed to delete task",
-      error: error.message
+      message: "Failed to delete task"
     });
   }
 });
@@ -212,18 +223,12 @@ app.delete("/tasks", authMiddleware, async (req, res) => {
       message: "All tasks deleted successfully"
     });
   } catch (error) {
+    console.error("Clear tasks error:", error.message);
     res.status(500).json({
-      message: "Failed to delete all tasks",
-      error: error.message
+      message: "Failed to delete all tasks"
     });
   }
 });
-
-// ===============================
-// Connect MongoDB
-// ===============================
-
-connectDB();
 
 // ===============================
 // Start Server
@@ -231,6 +236,17 @@ connectDB();
 
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Express server running on port ${PORT}`);
-});
+async function startServer() {
+  try {
+    await connectDB();
+
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Express server running on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error("Server startup failed:", error.message);
+    process.exit(1);
+  }
+}
+
+startServer();
