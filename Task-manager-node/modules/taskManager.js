@@ -1,3 +1,4 @@
+
 const Task = require("../models/Task");
 
 // =========================
@@ -12,11 +13,17 @@ const getTasks = async (userId) => {
 // Add task
 // =========================
 
-const addTask = async (text, userId, reminderAt = null) => {
+const addTask = async (
+  text,
+  userId,
+  reminderAt = null,
+  categoryId = null
+) => {
   const newTask = await Task.create({
     text: text,
     completed: false,
     reminderAt: reminderAt,
+    categoryId: categoryId,
     userId: userId
   });
 
@@ -31,7 +38,8 @@ const editTask = async (
   id,
   text,
   userId,
-  reminderAt = null
+  reminderAt = null,
+  categoryId = null
 ) => {
   return await Task.findOneAndUpdate(
     {
@@ -40,10 +48,11 @@ const editTask = async (
     },
     {
       text: text,
-      reminderAt: reminderAt
+      reminderAt: reminderAt,
+      categoryId: categoryId
     },
     {
-      new: true
+      returnDocument: "after"
     }
   );
 };

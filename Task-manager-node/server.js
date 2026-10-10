@@ -1,9 +1,13 @@
+
 require("dotenv").config();
 
 const express = require("express");
 const connectDB = require("./db");
 const authMiddleware = require("./middleware/authMiddleware");
 const authRoutes = require("./routes/authRoutes");
+const categoryRoutes = require("./routes/categoryRoutes");
+const ratingRoutes = require("./routes/ratingRoutes");
+const settingsRoutes = require("./routes/settingsRoutes");
 
 const {
   getTasks,
@@ -21,10 +25,7 @@ const app = express();
 // ===============================
 
 app.use((req, res, next) => {
-  res.setHeader(
-    "Access-Control-Allow-Origin",
-    "*"
-  );
+  res.setHeader("Access-Control-Allow-Origin", "*");
 
   res.setHeader(
     "Access-Control-Allow-Methods",
@@ -47,13 +48,18 @@ app.use((req, res, next) => {
 // JSON Middleware
 // ===============================
 
-app.use(express.json());
+app.use(express.json({ limit: "5mb" }));
 
 // ===============================
-// Authentication Routes
+// Authentication and Other Routes
 // ===============================
 
 app.use("/auth", authRoutes);
+app.use("/categories", categoryRoutes);
+app.use("/ratings", ratingRoutes);
+
+// NEW: Settings API
+app.use("/settings", settingsRoutes);
 
 // ===============================
 // Home Route
@@ -70,9 +76,7 @@ app.get("/", (req, res) => {
 app.get("/tasks", authMiddleware, async (req, res) => {
   try {
     const tasks = await getTasks(req.userId);
-
     res.json(tasks);
-
   } catch (error) {
     res.status(500).json({
       message: "Failed to get tasks",
@@ -87,7 +91,7 @@ app.get("/tasks", authMiddleware, async (req, res) => {
 
 app.post("/tasks", authMiddleware, async (req, res) => {
   try {
-    const { text, reminderAt } = req.body;
+    const { text, reminderAt, categoryId } = req.body;
 
     if (!text) {
       return res.status(400).json({
@@ -98,11 +102,11 @@ app.post("/tasks", authMiddleware, async (req, res) => {
     const newTask = await addTask(
       text,
       req.userId,
-      reminderAt
+      reminderAt,
+      categoryId
     );
 
     res.status(201).json(newTask);
-
   } catch (error) {
     res.status(500).json({
       message: "Failed to add task",
@@ -117,13 +121,14 @@ app.post("/tasks", authMiddleware, async (req, res) => {
 
 app.put("/tasks/:id", authMiddleware, async (req, res) => {
   try {
-    const { text, reminderAt } = req.body;
+    const { text, reminderAt, categoryId } = req.body;
 
     const updatedTask = await editTask(
       req.params.id,
       text,
       req.userId,
-      reminderAt
+      reminderAt,
+      categoryId
     );
 
     if (!updatedTask) {
@@ -133,7 +138,6 @@ app.put("/tasks/:id", authMiddleware, async (req, res) => {
     }
 
     res.json(updatedTask);
-
   } catch (error) {
     res.status(500).json({
       message: "Failed to edit task",
@@ -160,7 +164,6 @@ app.patch("/tasks/:id", authMiddleware, async (req, res) => {
     }
 
     res.json(updatedTask);
-
   } catch (error) {
     res.status(500).json({
       message: "Failed to update task",
@@ -189,7 +192,6 @@ app.delete("/tasks/:id", authMiddleware, async (req, res) => {
     res.json({
       message: "Task deleted successfully"
     });
-
   } catch (error) {
     res.status(500).json({
       message: "Failed to delete task",
@@ -209,7 +211,6 @@ app.delete("/tasks", authMiddleware, async (req, res) => {
     res.json({
       message: "All tasks deleted successfully"
     });
-
   } catch (error) {
     res.status(500).json({
       message: "Failed to delete all tasks",

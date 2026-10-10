@@ -12,6 +12,9 @@ function Login({
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const API_URL =
+    import.meta.env.VITE_API_URL || "http://localhost:3000";
+
   const handleSubmit = async (event) => {
     event.preventDefault();
 
@@ -24,63 +27,39 @@ function Login({
     setMessage("");
 
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/auth/login`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            email: email.trim(),
-            password
-          })
-        }
-      );
+      const response = await fetch(`${API_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          password
+        })
+      });
 
       const contentType =
         response.headers.get("content-type") || "";
 
-      const data =
-        contentType.includes("application/json")
-          ? await response.json()
-          : {};
+      const data = contentType.includes("application/json")
+        ? await response.json()
+        : {};
 
       if (!response.ok) {
-        throw new Error(
-          data.message || "Login failed"
-        );
+        throw new Error(data.message || "Login failed");
       }
 
-      // Make sure backend returned both tokens
       if (!data.accessToken || !data.refreshToken) {
         throw new Error(
           "Login successful, but authentication tokens were not received."
         );
       }
 
-      // =========================
-      // SAVE ACCESS TOKEN
-      // =========================
+      // Save both tokens in sessionStorage
+      sessionStorage.setItem("accessToken", data.accessToken);
+      sessionStorage.setItem("refreshToken", data.refreshToken);
 
-      sessionStorage.setItem(
-        "accessToken",
-        data.accessToken
-      );
-
-      // =========================
-      // SAVE REFRESH TOKEN
-      // =========================
-
-      sessionStorage.setItem(
-        "refreshToken",
-        data.refreshToken
-      );
-
-      // =========================
-      // SAVE CURRENT USER
-      // =========================
-
+      // Save current user
       if (data.user) {
         sessionStorage.setItem(
           "taskflowUser",
@@ -92,16 +71,10 @@ function Login({
         );
       }
 
-      // =========================
-      // LOGIN SUCCESS
-      // =========================
-
       onLogin();
-
     } catch (error) {
       console.error("Login error:", error);
       setMessage(error.message);
-
     } finally {
       setLoading(false);
     }
@@ -109,38 +82,25 @@ function Login({
 
   return (
     <div className="auth-card">
+      <div className="auth-icon">✓</div>
 
-      {/* Logo */}
-      <div className="auth-icon">
-        ✓
-      </div>
-
-      {/* Heading */}
       <h2>Welcome back</h2>
 
       <p className="auth-subtitle">
         Sign in to continue managing your tasks.
       </p>
 
-      {/* Login Form */}
       <form onSubmit={handleSubmit}>
-
-        {/* Email */}
         <div className="form-group">
-          <label htmlFor="login-email">
-            Email address
-          </label>
+          <label htmlFor="login-email">Email address</label>
 
           <div className="input-wrapper">
             <span>✉</span>
-
             <input
               id="login-email"
               type="email"
               value={email}
-              onChange={(event) =>
-                setEmail(event.target.value)
-              }
+              onChange={(event) => setEmail(event.target.value)}
               placeholder="you@example.com"
               autoComplete="email"
               required
@@ -148,26 +108,16 @@ function Login({
           </div>
         </div>
 
-        {/* Password */}
         <div className="form-group">
-          <label htmlFor="login-password">
-            Password
-          </label>
+          <label htmlFor="login-password">Password</label>
 
           <div className="input-wrapper">
             <span>🔒</span>
-
             <input
               id="login-password"
-              type={
-                showPassword
-                  ? "text"
-                  : "password"
-              }
+              type={showPassword ? "text" : "password"}
               value={password}
-              onChange={(event) =>
-                setPassword(event.target.value)
-              }
+              onChange={(event) => setPassword(event.target.value)}
               placeholder="Enter your password"
               autoComplete="current-password"
               required
@@ -176,20 +126,13 @@ function Login({
             <button
               type="button"
               className="password-toggle"
-              onClick={() =>
-                setShowPassword(!showPassword)
-              }
-              aria-label={
-                showPassword
-                  ? "Hide password"
-                  : "Show password"
-              }
+              onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
             >
               {showPassword ? "🙈" : "👁"}
             </button>
           </div>
 
-          {/* Forgot Password */}
           <div className="forgot-password">
             <button
               type="button"
@@ -201,39 +144,26 @@ function Login({
           </div>
         </div>
 
-        {/* Login Button */}
         <button
           type="submit"
           className="auth-button"
           disabled={loading}
         >
-          {loading
-            ? "Signing in..."
-            : "Sign in"}
-
-          {!loading && (
-            <span>→</span>
-          )}
+          {loading ? "Signing in..." : "Sign in"}
+          {!loading && <span>→</span>}
         </button>
-
       </form>
 
-      {/* Error / Message */}
       {message && (
-        <p className="auth-message">
-          {message}
-        </p>
+        <p className="auth-message">{message}</p>
       )}
 
-      {/* Divider */}
       <div className="auth-divider">
         <span>OR</span>
       </div>
 
-      {/* Register */}
       <p className="switch-text">
         Don't have an account?
-
         <button
           type="button"
           onClick={onRegisterClick}
@@ -242,10 +172,8 @@ function Login({
           Create account
         </button>
       </p>
-
     </div>
   );
 }
 
 export default Login;
-

@@ -6446,3 +6446,131 @@ html[data-theme="light"] .forgot-email-input {
 html[data-theme="light"] .forgot-email-input::placeholder {
   color: #9ca3af;
 }
+
+
+
+
+
+
+
+
+
+/* =========================================
+   DASHBOARD + MY TASKS - CATEGORY BOX
+   ========================================= */
+
+/* Dashboard Category Box */
+.dashboard .modern-add-task select,
+
+/* My Tasks Category Box */
+.mytasks-add-section select {
+  width: 100%;
+  max-width: 150px;
+  min-height: 40px;
+  padding: 8px 12px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1f2937;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  outline: none;
+  cursor: pointer;
+  color-scheme: light;
+  transition: border-color 0.2s ease,
+              box-shadow 0.2s ease;
+}
+
+/* Hover */
+.dashboard .modern-add-task select:hover,
+.mytasks-add-section select:hover {
+  border-color: #a78bfa;
+}
+
+/* Focus */
+.dashboard .modern-add-task select:focus,
+.mytasks-add-section select:focus {
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+}
+
+/* Light Mode Dropdown Options */
+.dashboard .modern-add-task select option,
+.mytasks-add-section select option {
+  color: #1f2937;
+  background-color: #ffffff;
+}
+
+/* Dark Mode Category Box */
+.dark .dashboard .modern-add-task select,
+.dark .mytasks-add-section select,
+[data-theme="dark"] .dashboard .modern-add-task select,
+[data-theme="dark"] .mytasks-add-section select,
+.dark-mode .dashboard .modern-add-task select,
+.dark-mode .mytasks-add-section select {
+  color: #f1f5f9;
+  background-color: #1e293b;
+  border-color: #475569;
+  color-scheme: dark;
+}
+
+/* Dark Mode Dropdown Options */
+.dark .dashboard .modern-add-task select option,
+.dark .mytasks-add-section select option,
+[data-theme="dark"] .dashboard .modern-add-task select option,
+[data-theme="dark"] .mytasks-add-section select option,
+.dark-mode .dashboard .modern-add-task select option,
+.dark-mode .mytasks-add-section select option {
+  color: #f1f5f9;
+  background-color: #1e293b;
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  .dashboard .modern-add-task select,
+  .mytasks-add-section select {
+    min-height: 40px;
+    font-size: 13px;
+  }
+}
+
+
+
+
+
+
+
+
+/* Feedback textarea - Rating page only */
+.rating-feedback-input {
+  width: 100%;
+  min-height: 120px;
+  padding: 14px 16px;
+  margin-top: 18px;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #1f2937;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.rating-feedback-input::placeholder {
+  color: #9ca3af;
+}
+
+.rating-feedback-input:focus {
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+}
+
+.rating-feedback-input:disabled {
+  background: #f9fafb;
+  color: #6b7280;
+  cursor: not-allowed;
+}

@@ -1,4 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
+
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef
+} from "react";
+
 import {
   BrowserRouter,
   Routes,
@@ -24,6 +31,8 @@ import Categories from "./pages/Categories";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import Rating from "./pages/Rating";
+
+import VerifyEmail from "./pages/VerifyEmail";
 
 import { showNotification } from "./utils/notifications";
 
@@ -210,10 +219,6 @@ function AppContent() {
 
   const [showRegister, setShowRegister] = useState(false);
 
-  // =========================================================
-  // FORGOT PASSWORD STATE
-  // =========================================================
-
   const [showForgotPassword, setShowForgotPassword] =
     useState(false);
 
@@ -233,6 +238,12 @@ function AppContent() {
   const [filter, setFilter] = useState("all");
 
   // =========================================================
+  // CATEGORY STATE
+  // =========================================================
+
+  const [categories, setCategories] = useState([]);
+
+  // =========================================================
   // CURRENT TIME
   // =========================================================
 
@@ -246,10 +257,20 @@ function AppContent() {
   const API_URL = import.meta.env.VITE_API_URL;
 
   // =========================================================
+  // REFRESH LOCK
+  // =========================================================
+
+  const refreshPromiseRef = useRef(null);
+
+  // =========================================================
   // REFRESH ACCESS TOKEN
   // =========================================================
 
   const refreshAccessToken = useCallback(async () => {
+    if (refreshPromiseRef.current) {
+      return refreshPromiseRef.current;
+    }
+
     const refreshToken =
       sessionStorage.getItem("refreshToken");
 
@@ -257,56 +278,115 @@ function AppContent() {
       return false;
     }
 
-    try {
-      const response = await fetch(
-        `${API_URL}/auth/refresh`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            refreshToken
-          })
-        }
-      );
-
-      const contentType =
-        response.headers.get("content-type") || "";
-
-      const data = contentType.includes(
-        "application/json"
-      )
-        ? await response.json()
-        : {};
-
-      if (!response.ok || !data.accessToken) {
-        throw new Error(
-          data.message || "Unable to refresh token"
+    refreshPromiseRef.current = (async () => {
+      try {
+        const response = await fetch(
+          `${API_URL}/auth/refresh`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              refreshToken
+            })
+          }
         );
+
+        const contentType =
+          response.headers.get("content-type") || "";
+
+        const data =
+          contentType.includes("application/json")
+            ? await response.json()
+            : {};
+
+        if (
+          !response.ok ||
+          !data.accessToken
+        ) {
+          throw new Error(
+            data.message ||
+              "Unable to refresh token"
+          );
+        }
+
+        sessionStorage.setItem(
+          "accessToken",
+          data.accessToken
+        );
+
+        console.log(
+          "New access token created automatically."
+        );
+
+        return true;
+      } catch (error) {
+        console.error(
+          "Token refresh failed:",
+          error
+        );
+
+        sessionStorage.removeItem(
+          "accessToken"
+        );
+
+        sessionStorage.removeItem(
+          "refreshToken"
+        );
+
+        sessionStorage.removeItem(
+          "taskflowUser"
+        );
+
+        setIsLoggedIn(false);
+
+        return false;
+      } finally {
+        refreshPromiseRef.current = null;
+      }
+    })();
+
+    return refreshPromiseRef.current;
+  }, [API_URL]);
+
+  // =========================================================
+  // AUTOMATIC TOKEN REFRESH
+  // =========================================================
+
+  useEffect(() => {
+    if (!isLoggedIn || authChecking) {
+      return;
+    }
+
+    const automaticRefresh = async () => {
+      const refreshToken =
+        sessionStorage.getItem("refreshToken");
+
+      if (!refreshToken) {
+        return;
       }
 
-      sessionStorage.setItem(
-        "accessToken",
-        data.accessToken
+      console.log(
+        "Automatically refreshing access token..."
       );
 
-      return true;
-    } catch (error) {
-      console.error(
-        "Token refresh failed:",
-        error
-      );
+      await refreshAccessToken();
+    };
 
-      sessionStorage.removeItem("accessToken");
-      sessionStorage.removeItem("refreshToken");
-      sessionStorage.removeItem("taskflowUser");
+    const refreshTimer = setInterval(
+      automaticRefresh,
+      10 * 60 * 1000
+    );
 
-      setIsLoggedIn(false);
-
-      return false;
-    }
-  }, [API_URL]);
+    return () => {
+      clearInterval(refreshTimer);
+    };
+  }, [
+    isLoggedIn,
+    authChecking,
+    refreshAccessToken
+  ]);
 
   // =========================================================
   // CHECK AUTH ON APP START
@@ -388,12 +468,17 @@ function AppContent() {
           ...options,
           headers: {
             ...(options.headers || {}),
-            Authorization: `Bearer ${accessToken}`
+            Authorization:
+              `Bearer ${accessToken}`
           }
         }
       );
 
       if (response.status === 401) {
+        console.log(
+          "Access token expired. Creating new token..."
+        );
+
         const refreshed =
           await refreshAccessToken();
 
@@ -418,7 +503,8 @@ function AppContent() {
             ...options,
             headers: {
               ...(options.headers || {}),
-              Authorization: `Bearer ${accessToken}`
+              Authorization:
+                `Bearer ${accessToken}`
             }
           }
         );
@@ -477,6 +563,65 @@ function AppContent() {
     };
 
     loadTasks();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isLoggedIn,
+    authChecking,
+    API_URL,
+    apiFetch
+  ]);
+
+  // =========================================================
+  // LOAD CATEGORIES
+  // =========================================================
+
+  useEffect(() => {
+    if (!isLoggedIn || authChecking) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadCategories = async () => {
+      try {
+        const response = await apiFetch(
+          `${API_URL}/categories`,
+          {
+            cache: "no-store"
+          }
+        );
+
+        const data =
+          response.headers
+            .get("content-type")
+            ?.includes("application/json")
+            ? await response.json()
+            : null;
+
+        if (!response.ok) {
+          throw new Error(
+            data?.message ||
+              "Failed to load categories"
+          );
+        }
+
+        if (!cancelled) {
+          setCategories(data || []);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error(
+            "Error loading categories:",
+            error
+          );
+        }
+      }
+    };
+
+    loadCategories();
 
     return () => {
       cancelled = true;
@@ -569,7 +714,8 @@ function AppContent() {
 
   const addTask = async (
     taskText,
-    reminderAt = null
+    reminderAt = null,
+    categoryId = null
   ) => {
     const tempId = `temp-${Date.now()}`;
 
@@ -578,6 +724,7 @@ function AppContent() {
       text: taskText,
       completed: false,
       reminderAt: reminderAt,
+      categoryId: categoryId,
       createdAt: new Date().toISOString()
     };
 
@@ -596,12 +743,12 @@ function AppContent() {
           },
           body: JSON.stringify({
             text: taskText,
-
             reminderAt: reminderAt
               ? new Date(
                   reminderAt
                 ).toISOString()
-              : null
+              : null,
+            categoryId: categoryId || null
           })
         }
       );
@@ -780,7 +927,8 @@ function AppContent() {
 
   const editTask = async (
     id,
-    newText
+    newText,
+    categoryId
   ) => {
     const oldTasks = [...tasks];
 
@@ -789,12 +937,18 @@ function AppContent() {
         (task) => task._id === id
       );
 
+    const selectedCategory =
+      categoryId !== undefined
+        ? categoryId
+        : existingTask?.categoryId || null;
+
     setTasks((currentTasks) =>
       currentTasks.map((task) =>
         task._id === id
           ? {
               ...task,
-              text: newText
+              text: newText,
+              categoryId: selectedCategory
             }
           : task
       )
@@ -812,7 +966,9 @@ function AppContent() {
             text: newText,
             reminderAt:
               existingTask?.reminderAt ||
-              null
+              null,
+            categoryId:
+              selectedCategory || null
           })
         }
       );
@@ -908,11 +1064,8 @@ function AppContent() {
   if (authChecking) {
     return (
       <div className="auth-page">
-
         <div className="auth-form-container">
-
           <div className="auth-card">
-
             <h2>
               Loading...
             </h2>
@@ -920,11 +1073,8 @@ function AppContent() {
             <p>
               Checking your session...
             </p>
-
           </div>
-
         </div>
-
       </div>
     );
   }
@@ -937,15 +1087,12 @@ function AppContent() {
     return (
       <Routes>
 
-        {/* FORGOT PASSWORD */}
-
         <Route
           path="/forgot-password"
           element={
             <div className="auth-page">
 
               <div className="auth-background-circle circle-one"></div>
-
               <div className="auth-background-circle circle-two"></div>
 
               <div className="auth-layout">
@@ -977,11 +1124,13 @@ function AppContent() {
                   <ForgotPassword
                     onBackToLogin={() => {
                       setShowForgotPassword(false);
+
                       window.history.pushState(
                         {},
                         "",
                         "/"
                       );
+
                       window.dispatchEvent(
                         new PopStateEvent("popstate")
                       );
@@ -1000,8 +1149,6 @@ function AppContent() {
           }
         />
 
-        {/* RESET PASSWORD */}
-
         <Route
           path="/reset-password/:token"
           element={
@@ -1009,7 +1156,12 @@ function AppContent() {
           }
         />
 
-        {/* NORMAL LOGIN / REGISTER */}
+        <Route
+          path="/verify-email/:token"
+          element={
+            <VerifyEmail />
+          }
+        />
 
         <Route
           path="*"
@@ -1017,12 +1169,9 @@ function AppContent() {
             <div className="auth-page">
 
               <div className="auth-background-circle circle-one"></div>
-
               <div className="auth-background-circle circle-two"></div>
 
               <div className="auth-layout">
-
-                {/* LEFT SIDE */}
 
                 <div className="auth-brand">
 
@@ -1112,8 +1261,6 @@ function AppContent() {
 
                 </div>
 
-                {/* RIGHT SIDE */}
-
                 <div className="auth-form-container">
 
                   {showForgotPassword ? (
@@ -1170,6 +1317,7 @@ function AppContent() {
 
   return (
     <>
+
       <Navbar
         collapsed={sidebarCollapsed}
         setCollapsed={setSidebarCollapsed}
@@ -1185,13 +1333,12 @@ function AppContent() {
 
         <Routes>
 
-          {/* DASHBOARD */}
-
           <Route
             path="/"
             element={
               <Dashboard
                 tasks={tasks}
+                categories={categories}
                 search={search}
                 setSearch={setSearch}
                 filter={filter}
@@ -1212,13 +1359,12 @@ function AppContent() {
             }
           />
 
-          {/* MY TASKS */}
-
           <Route
             path="/tasks"
             element={
               <MyTasks
                 tasks={tasks}
+                categories={categories}
                 onAdd={addTask}
                 onToggle={toggleTask}
                 onDelete={deleteTask}
@@ -1227,8 +1373,6 @@ function AppContent() {
               />
             }
           />
-
-          {/* DAILY PROCESS */}
 
           <Route
             path="/daily-process"
@@ -1239,8 +1383,6 @@ function AppContent() {
             }
           />
 
-          {/* CALENDAR */}
-
           <Route
             path="/calendar"
             element={
@@ -1249,8 +1391,6 @@ function AppContent() {
               />
             }
           />
-
-          {/* ANALYTICS */}
 
           <Route
             path="/analytics"
@@ -1261,8 +1401,6 @@ function AppContent() {
             }
           />
 
-          {/* CATEGORIES */}
-
           <Route
             path="/categories"
             element={
@@ -1272,16 +1410,12 @@ function AppContent() {
             }
           />
 
-          {/* PROFILE */}
-
           <Route
             path="/profile"
             element={
               <Profile />
             }
           />
-
-          {/* SETTINGS */}
 
           <Route
             path="/settings"
@@ -1290,16 +1424,12 @@ function AppContent() {
             }
           />
 
-          {/* RATING */}
-
           <Route
             path="/rating"
             element={
               <Rating />
             }
           />
-
-          {/* UNKNOWN URL */}
 
           <Route
             path="*"
@@ -1314,6 +1444,7 @@ function AppContent() {
         </Routes>
 
       </div>
+
     </>
   );
 }

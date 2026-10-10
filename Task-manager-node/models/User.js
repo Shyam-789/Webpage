@@ -1,4 +1,3 @@
-
 const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
@@ -20,6 +19,34 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: true
+    },
+
+    // =========================
+    // PROFILE PHOTO
+    // =========================
+
+    profilePhoto: {
+      type: String,
+      default: null
+    },
+
+    // =========================
+    // EMAIL VERIFICATION
+    // =========================
+
+    isEmailVerified: {
+      type: Boolean,
+      default: false
+    },
+
+    emailVerificationToken: {
+      type: String,
+      default: null
+    },
+
+    emailVerificationExpires: {
+      type: Date,
+      default: null
     },
 
     // =========================

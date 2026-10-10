@@ -1,9 +1,11 @@
+
 import { useMemo, useState } from "react";
 import TaskInput from "../components/TaskInput";
 import { useSettings } from "../context/useSettings";
 
 function MyTasks({
   tasks = [],
+  categories = [],
   onAdd,
   onToggle,
   onDelete,
@@ -280,7 +282,6 @@ function MyTasks({
 
       </div>
 
-
       {/* =========================
           STATISTICS
       ========================= */}
@@ -345,7 +346,6 @@ function MyTasks({
 
       </div>
 
-
       {/* =========================
           ADD TASK
       ========================= */}
@@ -369,10 +369,12 @@ function MyTasks({
 
         </div>
 
-        <TaskInput onAdd={onAdd} />
+        <TaskInput
+          onAdd={onAdd}
+          categories={categories}
+        />
 
       </div>
-
 
       {/* =========================
           TOOLBAR
@@ -443,7 +445,6 @@ function MyTasks({
 
       </div>
 
-
       {/* =========================
           PROGRESS
       ========================= */}
@@ -481,7 +482,6 @@ function MyTasks({
         </div>
 
       </div>
-
 
       {/* =========================
           TASK LIST
@@ -530,7 +530,6 @@ function MyTasks({
           )}
 
         </div>
-
 
         {filteredTasks.length === 0 ? (
 
@@ -584,7 +583,6 @@ function MyTasks({
                     ? "✓"
                     : ""}
                 </button>
-
 
                 {/* TASK CONTENT */}
 
@@ -649,7 +647,6 @@ function MyTasks({
                   </div>
 
                 </div>
-
 
                 {/* ACTIONS */}
 

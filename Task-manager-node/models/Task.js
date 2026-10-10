@@ -1,3 +1,4 @@
+
 const mongoose = require("mongoose");
 
 const taskSchema = new mongoose.Schema(
@@ -15,6 +16,13 @@ const taskSchema = new mongoose.Schema(
 
     reminderAt: {
       type: Date,
+      default: null
+    },
+
+    // NEW: connects task with a category
+    categoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
       default: null
     },
 

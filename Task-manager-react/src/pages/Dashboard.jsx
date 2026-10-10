@@ -1,9 +1,11 @@
+
 import TaskInput from "../components/TaskInput";
 import TaskList from "../components/TaskList";
 import { useSettings } from "../context/useSettings";
 
 function Dashboard({
   tasks,
+  categories = [],
   search,
   setSearch,
   filter,
@@ -217,7 +219,6 @@ function Dashboard({
           </div>
         </header>
 
-
         {/* =========================
             STAT CARDS
         ========================= */}
@@ -246,7 +247,6 @@ function Dashboard({
             </p>
           </div>
 
-
           <div className="modern-stat-card">
             <div className="stat-top">
 
@@ -269,7 +269,6 @@ function Dashboard({
               {text.completionRate}
             </p>
           </div>
-
 
           <div className="modern-stat-card">
             <div className="stat-top">
@@ -294,7 +293,6 @@ function Dashboard({
           </div>
 
         </section>
-
 
         {/* =========================
             TASK SECTION
@@ -331,7 +329,6 @@ function Dashboard({
 
           </div>
 
-
           {/* =========================
               SEARCH
           ========================= */}
@@ -356,7 +353,6 @@ function Dashboard({
 
           </div>
 
-
           {/* =========================
               FILTERS
           ========================= */}
@@ -379,7 +375,6 @@ function Dashboard({
                 {text.all}
               </button>
 
-
               <button
                 type="button"
                 className={
@@ -393,7 +388,6 @@ function Dashboard({
               >
                 {t("pending")}
               </button>
-
 
               <button
                 type="button"
@@ -410,7 +404,6 @@ function Dashboard({
               </button>
 
             </div>
-
 
             {/* =========================
                 CLEAR ALL
@@ -439,7 +432,6 @@ function Dashboard({
 
           </div>
 
-
           {/* =========================
               ADD TASK
           ========================= */}
@@ -448,10 +440,10 @@ function Dashboard({
 
             <TaskInput
               onAdd={addTask}
+              categories={categories}
             />
 
           </div>
-
 
           {/* =========================
               TASK LIST
@@ -494,7 +486,6 @@ function Dashboard({
 
         </section>
 
-
         {/* =========================
             PROGRESS
         ========================= */}
@@ -522,7 +513,6 @@ function Dashboard({
             </p>
 
           </div>
-
 
           <div className="progress-bar">
 
