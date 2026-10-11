@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 
 function ForgotPassword({ onBackToLogin }) {
@@ -19,19 +20,24 @@ function ForgotPassword({ onBackToLogin }) {
       return;
     }
 
+    if (!API_URL) {
+      setError("Server configuration is missing. Please contact support.");
+      return;
+    }
+
     try {
       setLoading(true);
 
       const response = await fetch(
-        `${API_URL}/auth/forgot-password`,
+        `${API_URL.replace(/\/+$/, "")}/auth/forgot-password`,
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            email: email.trim().toLowerCase()
-          })
+            email: email.trim().toLowerCase(),
+          }),
         }
       );
 
@@ -44,8 +50,7 @@ function ForgotPassword({ onBackToLogin }) {
 
       if (!response.ok) {
         throw new Error(
-          data.message ||
-            "Unable to process your request."
+          data.message || "Unable to process your request."
         );
       }
 
@@ -56,14 +61,12 @@ function ForgotPassword({ onBackToLogin }) {
 
       setEmail("");
     } catch (error) {
-      console.error(
-        "Forgot password error:",
-        error
-      );
+      console.error("Forgot password error:", error);
 
       setError(
-        error.message ||
-          "Something went wrong. Please try again."
+        error instanceof TypeError
+          ? "Cannot connect to the server. Please try again."
+          : error.message || "Something went wrong. Please try again."
       );
     } finally {
       setLoading(false);
@@ -72,41 +75,28 @@ function ForgotPassword({ onBackToLogin }) {
 
   return (
     <div className="auth-card">
-
       <div className="auth-card-header">
-
-        <h2>
-          Forgot Password?
-        </h2>
-
+        <h2>Forgot Password?</h2>
         <p>
           Enter your email address and we'll send you
           a password reset link.
         </p>
-
       </div>
 
       <form onSubmit={handleSubmit}>
-
         <div className="form-group">
-
-          <label htmlFor="forgot-email">
-            Email
-          </label>
+          <label htmlFor="forgot-email">Email</label>
 
           <input
             id="forgot-email"
             className="forgot-email-input"
             type="email"
             value={email}
-            onChange={(event) =>
-              setEmail(event.target.value)
-            }
+            onChange={(event) => setEmail(event.target.value)}
             placeholder="Enter your email"
             autoComplete="email"
             disabled={loading}
           />
-
         </div>
 
         {error && (
@@ -126,15 +116,11 @@ function ForgotPassword({ onBackToLogin }) {
           className="auth-button"
           disabled={loading}
         >
-          {loading
-            ? "Sending..."
-            : "Send Reset Link"}
+          {loading ? "Sending..." : "Send Reset Link"}
         </button>
-
       </form>
 
       <div className="auth-footer-link">
-
         <button
           type="button"
           className="back-to-login-button"
@@ -143,9 +129,7 @@ function ForgotPassword({ onBackToLogin }) {
         >
           ← Back to Login
         </button>
-
       </div>
-
     </div>
   );
 }
