@@ -1,46 +1,40 @@
+
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
-const nodemailer = require("nodemailer");
-
+const { Resend } = require("resend");
+const resend = new Resend(process.env.RESEND_API_KEY);
 const User = require("../models/User");
 const authMiddleware = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
 // =========================
-// Email transporter
+// Resend Email Configuration
 // =========================
 
+const EMAIL_FROM =
+  process.env.EMAIL_FROM || "TASKFLOW <onboarding@resend.dev>";
 
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD
-  },
-  connectionTimeout: 15000,
-  greetingTimeout: 15000,
-  socketTimeout: 20000
-});
-
-
-// Check email configuration
-transporter.verify((error) => {
-  if (error) {
-    console.error(
-      "EMAIL CONFIGURATION ERROR:",
-      error.message
-    );
-  } else {
-    console.log(
-      "Email transporter is ready"
-    );
+async function sendTaskflowEmail({ to, subject, html }) {
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error("RESEND_API_KEY is not configured");
   }
-});
+
+  const { data, error } = await resend.emails.send({
+    from: EMAIL_FROM,
+    to,
+    subject,
+    html
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
 
 // =========================
 // Register user
@@ -87,10 +81,7 @@ router.post("/register", async (req, res) => {
       });
     }
 
-    const hashedPassword = await bcrypt.hash(
-      password,
-      10
-    );
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     // =========================
     // CREATE USER IN MONGODB
@@ -109,21 +100,15 @@ router.post("/register", async (req, res) => {
     });
 
     return res.status(201).json({
-      message:
-        "Registration successful. You can now login.",
-
+      message: "Registration successful. You can now login.",
       user: {
         id: user._id,
         name: user.name,
         email: user.email
       }
     });
-
   } catch (error) {
-    console.error(
-      "REGISTRATION ERROR:",
-      error
-    );
+    console.error("REGISTRATION ERROR:", error);
 
     return res.status(500).json({
       message: "Registration failed",
@@ -136,141 +121,110 @@ router.post("/register", async (req, res) => {
 // VERIFY EMAIL
 // ======================================================
 
-router.get(
-  "/verify-email/:token",
-  async (req, res) => {
-    try {
-      const { token } = req.params;
+router.get("/verify-email/:token", async (req, res) => {
+  try {
+    const { token } = req.params;
 
-      if (!token) {
-        return res.status(400).json({
-          message:
-            "Email verification token is required"
-        });
-      }
-
-      const hashedVerificationToken =
-        crypto
-          .createHash("sha256")
-          .update(token)
-          .digest("hex");
-
-      const user = await User.findOne({
-        emailVerificationToken:
-          hashedVerificationToken,
-
-        emailVerificationExpires: {
-          $gt: new Date()
-        }
-      });
-
-      if (!user) {
-        return res.status(400).json({
-          message:
-            "Invalid or expired email verification link"
-        });
-      }
-
-      user.isEmailVerified = true;
-
-      user.emailVerificationToken = null;
-
-      user.emailVerificationExpires = null;
-
-      await user.save();
-
-      return res.json({
-        message:
-          "Email verified successfully. You can now login."
-      });
-
-    } catch (error) {
-      console.error(
-        "EMAIL VERIFICATION ERROR:",
-        error
-      );
-
-      return res.status(500).json({
-        message:
-          "Unable to verify email"
+    if (!token) {
+      return res.status(400).json({
+        message: "Email verification token is required"
       });
     }
+
+    const hashedVerificationToken = crypto
+      .createHash("sha256")
+      .update(token)
+      .digest("hex");
+
+    const user = await User.findOne({
+      emailVerificationToken: hashedVerificationToken,
+      emailVerificationExpires: {
+        $gt: new Date()
+      }
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        message: "Invalid or expired email verification link"
+      });
+    }
+
+    user.isEmailVerified = true;
+    user.emailVerificationToken = null;
+    user.emailVerificationExpires = null;
+
+    await user.save();
+
+    return res.json({
+      message: "Email verified successfully. You can now login."
+    });
+  } catch (error) {
+    console.error("EMAIL VERIFICATION ERROR:", error);
+
+    return res.status(500).json({
+      message: "Unable to verify email"
+    });
   }
-);
+});
 
 // ======================================================
 // RESEND VERIFICATION EMAIL
 // ======================================================
 
-router.post(
-  "/resend-verification",
-  async (req, res) => {
-    try {
-      const { email } = req.body;
+router.post("/resend-verification", async (req, res) => {
+  try {
+    const { email } = req.body;
 
-      if (!email) {
-        return res.status(400).json({
-          message: "Email is required"
-        });
-      }
-
-      const normalizedEmail =
-        email.trim().toLowerCase();
-
-      const user = await User.findOne({
-        email: normalizedEmail
+    if (!email) {
+      return res.status(400).json({
+        message: "Email is required"
       });
+    }
 
-      if (!user) {
-        return res.status(404).json({
-          message:
-            "No account found with this email."
-        });
-      }
+    const normalizedEmail = email.trim().toLowerCase();
 
-      if (user.isEmailVerified) {
-        return res.status(400).json({
-          message:
-            "This email is already verified. You can login."
-        });
-      }
+    const user = await User.findOne({
+      email: normalizedEmail
+    });
 
-      if (!process.env.FRONTEND_URL) {
-        return res.status(500).json({
-          message:
-            "FRONTEND_URL is not configured"
-        });
-      }
+    if (!user) {
+      return res.status(404).json({
+        message: "No account found with this email."
+      });
+    }
 
-      const verificationToken =
-        crypto.randomBytes(32).toString("hex");
+    if (user.isEmailVerified) {
+      return res.status(400).json({
+        message: "This email is already verified. You can login."
+      });
+    }
 
-      const hashedVerificationToken =
-        crypto
-          .createHash("sha256")
-          .update(verificationToken)
-          .digest("hex");
+    if (!process.env.FRONTEND_URL) {
+      return res.status(500).json({
+        message: "FRONTEND_URL is not configured"
+      });
+    }
 
-      user.emailVerificationToken =
-        hashedVerificationToken;
+    const verificationToken = crypto.randomBytes(32).toString("hex");
 
-      user.emailVerificationExpires =
-        Date.now() + 10 * 60 * 1000;
+    const hashedVerificationToken = crypto
+      .createHash("sha256")
+      .update(verificationToken)
+      .digest("hex");
 
-      await user.save();
+    user.emailVerificationToken = hashedVerificationToken;
+    user.emailVerificationExpires = Date.now() + 10 * 60 * 1000;
 
-      const verificationUrl =
-        `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
+    await user.save();
 
-      await transporter.sendMail({
-        from: process.env.EMAIL_USER,
+    const verificationUrl =
+      `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
 
-        to: user.email,
-
-        subject:
-          "TASKFLOW - Verify Your Email",
-
-        html: `
+    // CHANGED: Gmail SMTP -> Resend
+    await sendTaskflowEmail({
+      to: user.email,
+      subject: "TASKFLOW - Verify Your Email",
+      html: `
           <div style="
             font-family: Arial, sans-serif;
             max-width: 600px;
@@ -342,26 +296,19 @@ router.post(
             </div>
           </div>
         `
-      });
+    });
 
-      return res.json({
-        message:
-          "A new verification email has been sent. Please check your inbox."
-      });
+    return res.json({
+      message: "A new verification email has been sent. Please check your inbox."
+    });
+  } catch (error) {
+    console.error("RESEND VERIFICATION ERROR:", error);
 
-    } catch (error) {
-      console.error(
-        "RESEND VERIFICATION ERROR:",
-        error
-      );
-
-      return res.status(500).json({
-        message:
-          "Unable to resend verification email"
-      });
-    }
+    return res.status(500).json({
+      message: "Unable to resend verification email"
+    });
   }
-);
+});
 
 // =========================
 // Login API
@@ -377,8 +324,7 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    const normalizedEmail =
-      email.trim().toLowerCase();
+    const normalizedEmail = email.trim().toLowerCase();
 
     if (!process.env.JWT_SECRET) {
       return res.status(500).json({
@@ -388,8 +334,7 @@ router.post("/login", async (req, res) => {
 
     if (!process.env.JWT_REFRESH_SECRET) {
       return res.status(500).json({
-        message:
-          "JWT_REFRESH_SECRET is not configured"
+        message: "JWT_REFRESH_SECRET is not configured"
       });
     }
 
@@ -406,11 +351,10 @@ router.post("/login", async (req, res) => {
     }
 
     // Check password
-    const isPasswordCorrect =
-      await bcrypt.compare(
-        password,
-        user.password
-      );
+    const isPasswordCorrect = await bcrypt.compare(
+      password,
+      user.password
+    );
 
     if (!isPasswordCorrect) {
       return res.status(401).json({
@@ -448,23 +392,16 @@ router.post("/login", async (req, res) => {
 
     return res.json({
       message: "Login successful",
-
       accessToken: accessToken,
-
       refreshToken: refreshToken,
-
       user: {
         id: user._id,
         name: user.name,
         email: user.email
       }
     });
-
   } catch (error) {
-    console.error(
-      "LOGIN ERROR:",
-      error
-    );
+    console.error("LOGIN ERROR:", error);
 
     return res.status(500).json({
       message: "Login failed",
@@ -489,15 +426,13 @@ router.post("/refresh", (req, res) => {
 
     if (!process.env.JWT_REFRESH_SECRET) {
       return res.status(500).json({
-        message:
-          "JWT_REFRESH_SECRET is not configured"
+        message: "JWT_REFRESH_SECRET is not configured"
       });
     }
 
     if (!process.env.JWT_SECRET) {
       return res.status(500).json({
-        message:
-          "JWT_SECRET is not configured"
+        message: "JWT_SECRET is not configured"
       });
     }
 
@@ -519,11 +454,9 @@ router.post("/refresh", (req, res) => {
     res.json({
       accessToken: newAccessToken
     });
-
   } catch (error) {
     return res.status(401).json({
-      message:
-        "Invalid or expired refresh token"
+      message: "Invalid or expired refresh token"
     });
   }
 });
@@ -532,353 +465,251 @@ router.post("/refresh", (req, res) => {
 // GET PROFILE
 // ======================================================
 
-router.get(
-  "/profile",
-  authMiddleware,
-  async (req, res) => {
-    try {
-      const user = await User.findById(
-        req.userId
-      ).select("-password");
+router.get("/profile", authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId).select("-password");
 
-      if (!user) {
-        return res.status(404).json({
-          message: "User not found"
-        });
-      }
-
-      return res.json({
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-
-          // PROFILE PHOTO
-          profilePhoto: user.profilePhoto || null
-        }
-      });
-
-    } catch (error) {
-      console.error(
-        "GET PROFILE ERROR:",
-        error
-      );
-
-      return res.status(500).json({
-        message:
-          "Unable to get profile"
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found"
       });
     }
+
+    return res.json({
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        // PROFILE PHOTO
+        profilePhoto: user.profilePhoto || null
+      }
+    });
+  } catch (error) {
+    console.error("GET PROFILE ERROR:", error);
+
+    return res.status(500).json({
+      message: "Unable to get profile"
+    });
   }
-);
+});
 
 // ======================================================
 // UPDATE PROFILE
 // ======================================================
 
-router.put(
-  "/profile",
-  authMiddleware,
-  async (req, res) => {
-    try {
-      const {
-        name,
-        email
-      } = req.body;
+router.put("/profile", authMiddleware, async (req, res) => {
+  try {
+    const { name, email } = req.body;
 
-      if (!name || !email) {
-        return res.status(400).json({
-          message:
-            "Name and email are required"
-        });
-      }
-
-      const trimmedName =
-        name.trim();
-
-      const normalizedEmail =
-        email.trim().toLowerCase();
-
-      if (!trimmedName || !normalizedEmail) {
-        return res.status(400).json({
-          message:
-            "Name and email cannot be empty"
-        });
-      }
-
-      const emailPattern =
-        /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-      if (
-        !emailPattern.test(
-          normalizedEmail
-        )
-      ) {
-        return res.status(400).json({
-          message:
-            "Please enter a valid email address"
-        });
-      }
-
-      // Check whether another user
-      // already has this email
-      const existingUser =
-        await User.findOne({
-          email: normalizedEmail,
-          _id: {
-            $ne: req.userId
-          }
-        });
-
-      if (existingUser) {
-        return res.status(400).json({
-          message:
-            "Email is already registered"
-        });
-      }
-
-      const user =
-        await User.findById(
-          req.userId
-        );
-
-      if (!user) {
-        return res.status(404).json({
-          message:
-            "User not found"
-        });
-      }
-
-      user.name =
-        trimmedName;
-
-      user.email =
-        normalizedEmail;
-
-      await user.save();
-
-      return res.json({
-        message:
-          "Profile updated successfully",
-
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          profilePhoto:
-            user.profilePhoto || null
-        }
-      });
-
-    } catch (error) {
-      console.error(
-        "UPDATE PROFILE ERROR:",
-        error
-      );
-
-      return res.status(500).json({
-        message:
-          "Unable to update profile"
+    if (!name || !email) {
+      return res.status(400).json({
+        message: "Name and email are required"
       });
     }
+
+    const trimmedName = name.trim();
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!trimmedName || !normalizedEmail) {
+      return res.status(400).json({
+        message: "Name and email cannot be empty"
+      });
+    }
+
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailPattern.test(normalizedEmail)) {
+      return res.status(400).json({
+        message: "Please enter a valid email address"
+      });
+    }
+
+    // Check whether another user already has this email
+    const existingUser = await User.findOne({
+      email: normalizedEmail,
+      _id: {
+        $ne: req.userId
+      }
+    });
+
+    if (existingUser) {
+      return res.status(400).json({
+        message: "Email is already registered"
+      });
+    }
+
+    const user = await User.findById(req.userId);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found"
+      });
+    }
+
+    user.name = trimmedName;
+    user.email = normalizedEmail;
+
+    await user.save();
+
+    return res.json({
+      message: "Profile updated successfully",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        profilePhoto: user.profilePhoto || null
+      }
+    });
+  } catch (error) {
+    console.error("UPDATE PROFILE ERROR:", error);
+
+    return res.status(500).json({
+      message: "Unable to update profile"
+    });
   }
-);
+});
 
 // ======================================================
 // UPDATE PROFILE PHOTO
 // ======================================================
 
-router.put(
-  "/profile/photo",
-  authMiddleware,
-  async (req, res) => {
-    try {
-      const { profilePhoto } = req.body;
+router.put("/profile/photo", authMiddleware, async (req, res) => {
+  try {
+    const { profilePhoto } = req.body;
 
-      if (!profilePhoto) {
-        return res.status(400).json({
-          message: "Profile photo is required"
-        });
-      }
-
-      if (
-        typeof profilePhoto !== "string" ||
-        !profilePhoto.startsWith("data:image/")
-      ) {
-        return res.status(400).json({
-          message: "Invalid profile photo"
-        });
-      }
-
-      const user =
-        await User.findById(
-          req.userId
-        );
-
-      if (!user) {
-        return res.status(404).json({
-          message: "User not found"
-        });
-      }
-
-      user.profilePhoto =
-        profilePhoto;
-
-      await user.save();
-
-      return res.json({
-        message:
-          "Profile photo updated successfully",
-
-        profilePhoto:
-          user.profilePhoto
-      });
-
-    } catch (error) {
-      console.error(
-        "UPDATE PROFILE PHOTO ERROR:",
-        error
-      );
-
-      return res.status(500).json({
-        message:
-          "Unable to update profile photo"
+    if (!profilePhoto) {
+      return res.status(400).json({
+        message: "Profile photo is required"
       });
     }
+
+    if (
+      typeof profilePhoto !== "string" ||
+      !profilePhoto.startsWith("data:image/")
+    ) {
+      return res.status(400).json({
+        message: "Invalid profile photo"
+      });
+    }
+
+    const user = await User.findById(req.userId);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found"
+      });
+    }
+
+    user.profilePhoto = profilePhoto;
+
+    await user.save();
+
+    return res.json({
+      message: "Profile photo updated successfully",
+      profilePhoto: user.profilePhoto
+    });
+  } catch (error) {
+    console.error("UPDATE PROFILE PHOTO ERROR:", error);
+
+    return res.status(500).json({
+      message: "Unable to update profile photo"
+    });
   }
-);
+});
 
 // ======================================================
 // REMOVE PROFILE PHOTO
 // ======================================================
 
-router.delete(
-  "/profile/photo",
-  authMiddleware,
-  async (req, res) => {
-    try {
-      const user =
-        await User.findById(
-          req.userId
-        );
+router.delete("/profile/photo", authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId);
 
-      if (!user) {
-        return res.status(404).json({
-          message: "User not found"
-        });
-      }
-
-      user.profilePhoto = null;
-
-      await user.save();
-
-      return res.json({
-        message:
-          "Profile photo removed successfully",
-
-        profilePhoto: null
-      });
-
-    } catch (error) {
-      console.error(
-        "REMOVE PROFILE PHOTO ERROR:",
-        error
-      );
-
-      return res.status(500).json({
-        message:
-          "Unable to remove profile photo"
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found"
       });
     }
+
+    user.profilePhoto = null;
+
+    await user.save();
+
+    return res.json({
+      message: "Profile photo removed successfully",
+      profilePhoto: null
+    });
+  } catch (error) {
+    console.error("REMOVE PROFILE PHOTO ERROR:", error);
+
+    return res.status(500).json({
+      message: "Unable to remove profile photo"
+    });
   }
-);
+});
 
 // ======================================================
 // CHANGE PASSWORD
 // ======================================================
 
-router.post(
-  "/change-password",
-  authMiddleware,
-  async (req, res) => {
-    try {
-      const {
-        currentPassword,
-        newPassword
-      } = req.body;
+router.post("/change-password", authMiddleware, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
 
-      // Check required fields
-      if (!currentPassword || !newPassword) {
-        return res.status(400).json({
-          message:
-            "Current password and new password are required"
-        });
-      }
-
-      // Check new password length
-      if (newPassword.length < 6) {
-        return res.status(400).json({
-          message:
-            "New password must be at least 6 characters"
-        });
-      }
-
-      // Find logged-in user
-      const user = await User.findById(
-        req.userId
-      );
-
-      if (!user) {
-        return res.status(404).json({
-          message: "User not found"
-        });
-      }
-
-      // Check current password
-      const isPasswordCorrect =
-        await bcrypt.compare(
-          currentPassword,
-          user.password
-        );
-
-      if (!isPasswordCorrect) {
-        return res.status(401).json({
-          message:
-            "Current password is incorrect"
-        });
-      }
-
-      // Hash new password
-      const hashedPassword =
-        await bcrypt.hash(
-          newPassword,
-          10
-        );
-
-      // Save new password
-      user.password =
-        hashedPassword;
-
-      await user.save();
-
-      return res.json({
-        message:
-          "Password changed successfully"
-      });
-
-    } catch (error) {
-      console.error(
-        "CHANGE PASSWORD ERROR:",
-        error
-      );
-
-      return res.status(500).json({
-        message:
-          "Unable to change password"
+    // Check required fields
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        message: "Current password and new password are required"
       });
     }
+
+    // Check new password length
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        message: "New password must be at least 6 characters"
+      });
+    }
+
+    // Find logged-in user
+    const user = await User.findById(req.userId);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found"
+      });
+    }
+
+    // Check current password
+    const isPasswordCorrect = await bcrypt.compare(
+      currentPassword,
+      user.password
+    );
+
+    if (!isPasswordCorrect) {
+      return res.status(401).json({
+        message: "Current password is incorrect"
+      });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Save new password
+    user.password = hashedPassword;
+
+    await user.save();
+
+    return res.json({
+      message: "Password changed successfully"
+    });
+  } catch (error) {
+    console.error("CHANGE PASSWORD ERROR:", error);
+
+    return res.status(500).json({
+      message: "Unable to change password"
+    });
   }
-);
+});
 
 // ======================================================
 // FORGOT PASSWORD
@@ -894,8 +725,7 @@ router.post("/forgot-password", async (req, res) => {
       });
     }
 
-    const normalizedEmail =
-      email.trim().toLowerCase();
+    const normalizedEmail = email.trim().toLowerCase();
 
     const user = await User.findOne({
       email: normalizedEmail
@@ -908,44 +738,33 @@ router.post("/forgot-password", async (req, res) => {
       });
     }
 
-    const resetToken =
-      crypto.randomBytes(32).toString("hex");
+    const resetToken = crypto.randomBytes(32).toString("hex");
 
-    const hashedResetToken =
-      crypto
-        .createHash("sha256")
-        .update(resetToken)
-        .digest("hex");
+    const hashedResetToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
 
-    user.resetPasswordToken =
-      hashedResetToken;
-
-    user.resetPasswordExpires =
-      Date.now() + 10 * 60 * 1000;
+    user.resetPasswordToken = hashedResetToken;
+    user.resetPasswordExpires = Date.now() + 10 * 60 * 1000;
 
     await user.save();
 
-    const frontendUrl =
-      process.env.FRONTEND_URL;
+    const frontendUrl = process.env.FRONTEND_URL;
 
     if (!frontendUrl) {
       return res.status(500).json({
-        message:
-          "FRONTEND_URL is not configured"
+        message: "FRONTEND_URL is not configured"
       });
     }
 
     const resetUrl =
       `${frontendUrl}/reset-password/${resetToken}`;
 
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-
+    // CHANGED: Gmail SMTP -> Resend
+    await sendTaskflowEmail({
       to: user.email,
-
-      subject:
-        "TASKFLOW - Reset Your Password",
-
+      subject: "TASKFLOW - Reset Your Password",
       html: `
         <div style="
           font-family: Arial, sans-serif;
@@ -1035,16 +854,11 @@ router.post("/forgot-password", async (req, res) => {
       message:
         "If an account with that email exists, a password reset link has been sent."
     });
-
   } catch (error) {
-    console.error(
-      "FORGOT PASSWORD ERROR:",
-      error
-    );
+    console.error("FORGOT PASSWORD ERROR:", error);
 
     return res.status(500).json({
-      message:
-        "Unable to process password reset request"
+      message: "Unable to process password reset request"
     });
   }
 });
@@ -1055,35 +869,27 @@ router.post("/forgot-password", async (req, res) => {
 
 router.post("/reset-password", async (req, res) => {
   try {
-    const {
-      token,
-      password
-    } = req.body;
+    const { token, password } = req.body;
 
     if (!token || !password) {
       return res.status(400).json({
-        message:
-          "Reset token and new password are required"
+        message: "Reset token and new password are required"
       });
     }
 
     if (password.length < 6) {
       return res.status(400).json({
-        message:
-          "Password must be at least 6 characters"
+        message: "Password must be at least 6 characters"
       });
     }
 
-    const hashedResetToken =
-      crypto
-        .createHash("sha256")
-        .update(token)
-        .digest("hex");
+    const hashedResetToken = crypto
+      .createHash("sha256")
+      .update(token)
+      .digest("hex");
 
     const user = await User.findOne({
-      resetPasswordToken:
-        hashedResetToken,
-
+      resetPasswordToken: hashedResetToken,
       resetPasswordExpires: {
         $gt: new Date()
       }
@@ -1091,22 +897,14 @@ router.post("/reset-password", async (req, res) => {
 
     if (!user) {
       return res.status(400).json({
-        message:
-          "Invalid or expired password reset link"
+        message: "Invalid or expired password reset link"
       });
     }
 
-    const hashedPassword =
-      await bcrypt.hash(
-        password,
-        10
-      );
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    user.password =
-      hashedPassword;
-
+    user.password = hashedPassword;
     user.resetPasswordToken = null;
-
     user.resetPasswordExpires = null;
 
     await user.save();
@@ -1115,16 +913,11 @@ router.post("/reset-password", async (req, res) => {
       message:
         "Password reset successfully. You can now login with your new password."
     });
-
   } catch (error) {
-    console.error(
-      "Reset password error:",
-      error
-    );
+    console.error("Reset password error:", error);
 
     return res.status(500).json({
-      message:
-        "Unable to reset password"
+      message: "Unable to reset password"
     });
   }
 });
