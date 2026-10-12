@@ -3,8 +3,6 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
-const { Resend } = require("resend");
-const resend = new Resend(process.env.RESEND_API_KEY);
 const User = require("../models/User");
 const authMiddleware = require("../middleware/authMiddleware");
 
@@ -14,13 +12,22 @@ const router = express.Router();
 // Resend Email Configuration
 // =========================
 
+
+const { Resend } = require("resend");
+
 const EMAIL_FROM =
   process.env.EMAIL_FROM || "TASKFLOW <onboarding@resend.dev>";
 
-async function sendTaskflowEmail({ to, subject, html }) {
+function createResendClient() {
   if (!process.env.RESEND_API_KEY) {
     throw new Error("RESEND_API_KEY is not configured");
   }
+
+  return new Resend(process.env.RESEND_API_KEY);
+}
+
+async function sendTaskflowEmail({ to, subject, html }) {
+  const resend = createResendClient();
 
   const { data, error } = await resend.emails.send({
     from: EMAIL_FROM,
@@ -30,11 +37,13 @@ async function sendTaskflowEmail({ to, subject, html }) {
   });
 
   if (error) {
+    console.error("RESEND EMAIL ERROR:", error);
     throw new Error(error.message);
   }
 
   return data;
 }
+
 
 // =========================
 // Register user
