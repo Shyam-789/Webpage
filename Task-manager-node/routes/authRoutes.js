@@ -3,47 +3,46 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
+const nodemailer = require("nodemailer");
+
 const User = require("../models/User");
 const authMiddleware = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
 // =========================
-// Resend Email Configuration
+// Gmail SMTP Configuration
 // =========================
 
+const SMTP_USER = process.env.SMTP_USER;
+const SMTP_PASS = process.env.SMTP_PASS;
 
-const { Resend } = require("resend");
-
-const EMAIL_FROM =
-  process.env.EMAIL_FROM || "TASKFLOW <onboarding@resend.dev>";
-
-function createResendClient() {
-  if (!process.env.RESEND_API_KEY) {
-    throw new Error("RESEND_API_KEY is not configured");
+function createMailTransporter() {
+  if (!SMTP_USER || !SMTP_PASS) {
+    throw new Error(
+      "SMTP_USER or SMTP_PASS is missing in .env"
+    );
   }
 
-  return new Resend(process.env.RESEND_API_KEY);
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: SMTP_USER,
+      pass: SMTP_PASS,
+    },
+  });
 }
 
 async function sendTaskflowEmail({ to, subject, html }) {
-  const resend = createResendClient();
+  const transporter = createMailTransporter();
 
-  const { data, error } = await resend.emails.send({
-    from: EMAIL_FROM,
+  return transporter.sendMail({
+    from: `"TASKFLOW" <${SMTP_USER}>`,
     to,
     subject,
-    html
+    html,
   });
-
-  if (error) {
-    console.error("RESEND EMAIL ERROR:", error);
-    throw new Error(error.message);
-  }
-
-  return data;
 }
-
 
 // =========================
 // Register user
@@ -55,7 +54,7 @@ router.post("/register", async (req, res) => {
 
     if (!name || !email || !password) {
       return res.status(400).json({
-        message: "Name, email and password are required"
+        message: "Name, email and password are required",
       });
     }
 
@@ -64,48 +63,41 @@ router.post("/register", async (req, res) => {
 
     if (!trimmedName || !normalizedEmail) {
       return res.status(400).json({
-        message: "Name and email cannot be empty"
+        message: "Name and email cannot be empty",
       });
     }
 
     if (!process.env.JWT_SECRET) {
       return res.status(500).json({
-        message: "JWT_SECRET is not configured"
+        message: "JWT_SECRET is not configured",
       });
     }
 
     if (!process.env.JWT_REFRESH_SECRET) {
       return res.status(500).json({
-        message: "JWT_REFRESH_SECRET is not configured"
+        message: "JWT_REFRESH_SECRET is not configured",
       });
     }
 
     const existingUser = await User.findOne({
-      email: normalizedEmail
+      email: normalizedEmail,
     });
 
     if (existingUser) {
       return res.status(400).json({
-        message: "User already exists"
+        message: "User already exists",
       });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // =========================
-    // CREATE USER IN MONGODB
-    // =========================
-
     const user = await User.create({
       name: trimmedName,
       email: normalizedEmail,
       password: hashedPassword,
-
-      // Email verification is NOT required
       isEmailVerified: true,
-
       emailVerificationToken: null,
-      emailVerificationExpires: null
+      emailVerificationExpires: null,
     });
 
     return res.status(201).json({
@@ -113,15 +105,15 @@ router.post("/register", async (req, res) => {
       user: {
         id: user._id,
         name: user.name,
-        email: user.email
-      }
+        email: user.email,
+      },
     });
   } catch (error) {
     console.error("REGISTRATION ERROR:", error);
 
     return res.status(500).json({
       message: "Registration failed",
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -136,7 +128,7 @@ router.get("/verify-email/:token", async (req, res) => {
 
     if (!token) {
       return res.status(400).json({
-        message: "Email verification token is required"
+        message: "Email verification token is required",
       });
     }
 
@@ -148,13 +140,13 @@ router.get("/verify-email/:token", async (req, res) => {
     const user = await User.findOne({
       emailVerificationToken: hashedVerificationToken,
       emailVerificationExpires: {
-        $gt: new Date()
-      }
+        $gt: new Date(),
+      },
     });
 
     if (!user) {
       return res.status(400).json({
-        message: "Invalid or expired email verification link"
+        message: "Invalid or expired email verification link",
       });
     }
 
@@ -165,13 +157,13 @@ router.get("/verify-email/:token", async (req, res) => {
     await user.save();
 
     return res.json({
-      message: "Email verified successfully. You can now login."
+      message: "Email verified successfully. You can now login.",
     });
   } catch (error) {
     console.error("EMAIL VERIFICATION ERROR:", error);
 
     return res.status(500).json({
-      message: "Unable to verify email"
+      message: "Unable to verify email",
     });
   }
 });
@@ -186,34 +178,33 @@ router.post("/resend-verification", async (req, res) => {
 
     if (!email) {
       return res.status(400).json({
-        message: "Email is required"
+        message: "Email is required",
       });
     }
 
     const normalizedEmail = email.trim().toLowerCase();
 
     const user = await User.findOne({
-      email: normalizedEmail
+      email: normalizedEmail,
     });
 
     if (!user) {
       return res.status(404).json({
-        message: "No account found with this email."
+        message: "No account found with this email.",
       });
     }
 
     if (user.isEmailVerified) {
       return res.status(400).json({
-        message: "This email is already verified. You can login."
+        message: "This email is already verified. You can login.",
       });
     }
 
     if (!process.env.FRONTEND_URL) {
       return res.status(500).json({
-        message: "FRONTEND_URL is not configured"
+        message: "FRONTEND_URL is not configured",
       });
     }
-
     const verificationToken = crypto.randomBytes(32).toString("hex");
 
     const hashedVerificationToken = crypto
@@ -229,92 +220,36 @@ router.post("/resend-verification", async (req, res) => {
     const verificationUrl =
       `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
 
-    // CHANGED: Gmail SMTP -> Resend
     await sendTaskflowEmail({
       to: user.email,
       subject: "TASKFLOW - Verify Your Email",
       html: `
-          <div style="
-            font-family: Arial, sans-serif;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 30px;
-            background: #f8fafc;
-            color: #111827;
-          ">
-
-            <div style="
-              background: white;
-              padding: 30px;
-              border-radius: 12px;
-              border: 1px solid #e5e7eb;
-            ">
-
-              <h1 style="
-                color: #7c3aed;
-                margin-bottom: 10px;
-              ">
-                ✦ TASKFLOW
-              </h1>
-
-              <h2>
-                Verify your email
-              </h2>
-
-              <p>
-                Hello ${user.name},
-              </p>
-
-              <p>
-                Here is your new TASKFLOW email
-                verification link.
-              </p>
-
-              <div style="
-                margin: 30px 0;
-              ">
-                <a
-                  href="${verificationUrl}"
-                  style="
-                    display: inline-block;
-                    padding: 12px 22px;
-                    background: #7c3aed;
-                    color: white;
-                    text-decoration: none;
-                    border-radius: 8px;
-                    font-weight: bold;
-                  "
-                >
-                  Verify Email
-                </a>
-              </div>
-
-              <p>
-                This verification link will expire in
-                <strong>10 minutes</strong>.
-              </p>
-
-              <p style="
-                margin-top: 30px;
-                color: #6b7280;
-                font-size: 13px;
-              ">
-                © 2026 TASKFLOW
-              </p>
-
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:30px;background:#f8fafc;color:#111827;">
+          <div style="background:white;padding:30px;border-radius:12px;border:1px solid #e5e7eb;">
+            <h1 style="color:#7c3aed;">✦ TASKFLOW</h1>
+            <h2>Verify your email</h2>
+            <p>Hello ${user.name},</p>
+            <p>Here is your new TASKFLOW email verification link.</p>
+            <div style="margin:30px 0;">
+              <a href="${verificationUrl}" style="display:inline-block;padding:12px 22px;background:#7c3aed;color:white;text-decoration:none;border-radius:8px;font-weight:bold;">
+                Verify Email
+              </a>
             </div>
+            <p>This verification link will expire in <strong>10 minutes</strong>.</p>
+            <p style="margin-top:30px;color:#6b7280;font-size:13px;">© 2026 TASKFLOW</p>
           </div>
-        `
+        </div>
+      `,
     });
 
     return res.json({
-      message: "A new verification email has been sent. Please check your inbox."
+      message: "A new verification email has been sent. Please check your inbox.",
     });
   } catch (error) {
     console.error("RESEND VERIFICATION ERROR:", error);
 
     return res.status(500).json({
-      message: "Unable to resend verification email"
+      message: "Unable to resend verification email",
     });
   }
 });
@@ -329,7 +264,7 @@ router.post("/login", async (req, res) => {
 
     if (!email || !password) {
       return res.status(400).json({
-        message: "Email and password are required"
+        message: "Email and password are required",
       });
     }
 
@@ -337,29 +272,26 @@ router.post("/login", async (req, res) => {
 
     if (!process.env.JWT_SECRET) {
       return res.status(500).json({
-        message: "JWT_SECRET is not configured"
+        message: "JWT_SECRET is not configured",
       });
     }
 
     if (!process.env.JWT_REFRESH_SECRET) {
       return res.status(500).json({
-        message: "JWT_REFRESH_SECRET is not configured"
+        message: "JWT_REFRESH_SECRET is not configured",
       });
     }
 
-    // Find ONLY the registered email
     const user = await User.findOne({
-      email: normalizedEmail
+      email: normalizedEmail,
     });
 
-    // Email does not exist
     if (!user) {
       return res.status(401).json({
-        message: "Invalid email or password"
+        message: "Invalid email or password",
       });
     }
 
-    // Check password
     const isPasswordCorrect = await bcrypt.compare(
       password,
       user.password
@@ -367,54 +299,46 @@ router.post("/login", async (req, res) => {
 
     if (!isPasswordCorrect) {
       return res.status(401).json({
-        message: "Invalid email or password"
+        message: "Invalid email or password",
       });
     }
 
-    // =========================
-    // Create access token
-    // =========================
-
     const accessToken = jwt.sign(
       {
-        userId: user._id
+        userId: user._id,
       },
       process.env.JWT_SECRET,
       {
-        expiresIn: "15m"
+        expiresIn: "15m",
       }
     );
 
-    // =========================
-    // Create refresh token
-    // =========================
-
     const refreshToken = jwt.sign(
       {
-        userId: user._id
+        userId: user._id,
       },
       process.env.JWT_REFRESH_SECRET,
       {
-        expiresIn: "30d"
+        expiresIn: "30d",
       }
     );
 
     return res.json({
       message: "Login successful",
-      accessToken: accessToken,
-      refreshToken: refreshToken,
+      accessToken,
+      refreshToken,
       user: {
         id: user._id,
         name: user.name,
-        email: user.email
-      }
+        email: user.email,
+      },
     });
   } catch (error) {
     console.error("LOGIN ERROR:", error);
 
     return res.status(500).json({
       message: "Login failed",
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -429,19 +353,19 @@ router.post("/refresh", (req, res) => {
 
     if (!refreshToken) {
       return res.status(401).json({
-        message: "Refresh token required"
+        message: "Refresh token required",
       });
     }
 
     if (!process.env.JWT_REFRESH_SECRET) {
       return res.status(500).json({
-        message: "JWT_REFRESH_SECRET is not configured"
+        message: "JWT_REFRESH_SECRET is not configured",
       });
     }
 
     if (!process.env.JWT_SECRET) {
       return res.status(500).json({
-        message: "JWT_SECRET is not configured"
+        message: "JWT_SECRET is not configured",
       });
     }
 
@@ -452,20 +376,20 @@ router.post("/refresh", (req, res) => {
 
     const newAccessToken = jwt.sign(
       {
-        userId: decoded.userId
+        userId: decoded.userId,
       },
       process.env.JWT_SECRET,
       {
-        expiresIn: "15m"
+        expiresIn: "15m",
       }
     );
 
-    res.json({
-      accessToken: newAccessToken
+    return res.json({
+      accessToken: newAccessToken,
     });
   } catch (error) {
     return res.status(401).json({
-      message: "Invalid or expired refresh token"
+      message: "Invalid or expired refresh token",
     });
   }
 });
@@ -480,7 +404,7 @@ router.get("/profile", authMiddleware, async (req, res) => {
 
     if (!user) {
       return res.status(404).json({
-        message: "User not found"
+        message: "User not found",
       });
     }
 
@@ -489,15 +413,14 @@ router.get("/profile", authMiddleware, async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        // PROFILE PHOTO
-        profilePhoto: user.profilePhoto || null
-      }
+        profilePhoto: user.profilePhoto || null,
+      },
     });
   } catch (error) {
     console.error("GET PROFILE ERROR:", error);
 
     return res.status(500).json({
-      message: "Unable to get profile"
+      message: "Unable to get profile",
     });
   }
 });
@@ -512,7 +435,7 @@ router.put("/profile", authMiddleware, async (req, res) => {
 
     if (!name || !email) {
       return res.status(400).json({
-        message: "Name and email are required"
+        message: "Name and email are required",
       });
     }
 
@@ -521,7 +444,7 @@ router.put("/profile", authMiddleware, async (req, res) => {
 
     if (!trimmedName || !normalizedEmail) {
       return res.status(400).json({
-        message: "Name and email cannot be empty"
+        message: "Name and email cannot be empty",
       });
     }
 
@@ -529,21 +452,20 @@ router.put("/profile", authMiddleware, async (req, res) => {
 
     if (!emailPattern.test(normalizedEmail)) {
       return res.status(400).json({
-        message: "Please enter a valid email address"
+        message: "Please enter a valid email address",
       });
     }
 
-    // Check whether another user already has this email
     const existingUser = await User.findOne({
       email: normalizedEmail,
       _id: {
-        $ne: req.userId
-      }
+        $ne: req.userId,
+      },
     });
 
     if (existingUser) {
       return res.status(400).json({
-        message: "Email is already registered"
+        message: "Email is already registered",
       });
     }
 
@@ -551,7 +473,7 @@ router.put("/profile", authMiddleware, async (req, res) => {
 
     if (!user) {
       return res.status(404).json({
-        message: "User not found"
+        message: "User not found",
       });
     }
 
@@ -566,14 +488,14 @@ router.put("/profile", authMiddleware, async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        profilePhoto: user.profilePhoto || null
-      }
+        profilePhoto: user.profilePhoto || null,
+      },
     });
   } catch (error) {
     console.error("UPDATE PROFILE ERROR:", error);
 
     return res.status(500).json({
-      message: "Unable to update profile"
+      message: "Unable to update profile",
     });
   }
 });
@@ -588,7 +510,7 @@ router.put("/profile/photo", authMiddleware, async (req, res) => {
 
     if (!profilePhoto) {
       return res.status(400).json({
-        message: "Profile photo is required"
+        message: "Profile photo is required",
       });
     }
 
@@ -597,7 +519,7 @@ router.put("/profile/photo", authMiddleware, async (req, res) => {
       !profilePhoto.startsWith("data:image/")
     ) {
       return res.status(400).json({
-        message: "Invalid profile photo"
+        message: "Invalid profile photo",
       });
     }
 
@@ -605,7 +527,7 @@ router.put("/profile/photo", authMiddleware, async (req, res) => {
 
     if (!user) {
       return res.status(404).json({
-        message: "User not found"
+        message: "User not found",
       });
     }
 
@@ -615,13 +537,13 @@ router.put("/profile/photo", authMiddleware, async (req, res) => {
 
     return res.json({
       message: "Profile photo updated successfully",
-      profilePhoto: user.profilePhoto
+      profilePhoto: user.profilePhoto,
     });
   } catch (error) {
     console.error("UPDATE PROFILE PHOTO ERROR:", error);
 
     return res.status(500).json({
-      message: "Unable to update profile photo"
+      message: "Unable to update profile photo",
     });
   }
 });
@@ -636,7 +558,7 @@ router.delete("/profile/photo", authMiddleware, async (req, res) => {
 
     if (!user) {
       return res.status(404).json({
-        message: "User not found"
+        message: "User not found",
       });
     }
 
@@ -646,13 +568,13 @@ router.delete("/profile/photo", authMiddleware, async (req, res) => {
 
     return res.json({
       message: "Profile photo removed successfully",
-      profilePhoto: null
+      profilePhoto: null,
     });
   } catch (error) {
     console.error("REMOVE PROFILE PHOTO ERROR:", error);
 
     return res.status(500).json({
-      message: "Unable to remove profile photo"
+      message: "Unable to remove profile photo",
     });
   }
 });
@@ -665,30 +587,26 @@ router.post("/change-password", authMiddleware, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
-    // Check required fields
     if (!currentPassword || !newPassword) {
       return res.status(400).json({
-        message: "Current password and new password are required"
+        message: "Current password and new password are required",
       });
     }
 
-    // Check new password length
     if (newPassword.length < 6) {
       return res.status(400).json({
-        message: "New password must be at least 6 characters"
+        message: "New password must be at least 6 characters",
       });
     }
 
-    // Find logged-in user
     const user = await User.findById(req.userId);
 
     if (!user) {
       return res.status(404).json({
-        message: "User not found"
+        message: "User not found",
       });
     }
 
-    // Check current password
     const isPasswordCorrect = await bcrypt.compare(
       currentPassword,
       user.password
@@ -696,26 +614,24 @@ router.post("/change-password", authMiddleware, async (req, res) => {
 
     if (!isPasswordCorrect) {
       return res.status(401).json({
-        message: "Current password is incorrect"
+        message: "Current password is incorrect",
       });
     }
 
-    // Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Save new password
     user.password = hashedPassword;
 
     await user.save();
 
     return res.json({
-      message: "Password changed successfully"
+      message: "Password changed successfully",
     });
   } catch (error) {
     console.error("CHANGE PASSWORD ERROR:", error);
 
     return res.status(500).json({
-      message: "Unable to change password"
+      message: "Unable to change password",
     });
   }
 });
@@ -730,21 +646,27 @@ router.post("/forgot-password", async (req, res) => {
 
     if (!email) {
       return res.status(400).json({
-        message: "Email is required"
+        message: "Email is required",
       });
     }
 
     const normalizedEmail = email.trim().toLowerCase();
 
     const user = await User.findOne({
-      email: normalizedEmail
+      email: normalizedEmail,
     });
 
     if (!user) {
       return res.json({
         message:
-          "If an account with that email exists, a password reset link has been sent."
+          "If an account with that email exists, a password reset link has been sent.",
       });
+    }
+
+    const frontendUrl = process.env.FRONTEND_URL;
+
+    if (!frontendUrl) {
+      throw new Error("FRONTEND_URL is not configured");
     }
 
     const resetToken = crypto.randomBytes(32).toString("hex");
@@ -759,115 +681,42 @@ router.post("/forgot-password", async (req, res) => {
 
     await user.save();
 
-    const frontendUrl = process.env.FRONTEND_URL;
-
-    if (!frontendUrl) {
-      return res.status(500).json({
-        message: "FRONTEND_URL is not configured"
-      });
-    }
-
     const resetUrl =
       `${frontendUrl}/reset-password/${resetToken}`;
 
-    // CHANGED: Gmail SMTP -> Resend
     await sendTaskflowEmail({
       to: user.email,
       subject: "TASKFLOW - Reset Your Password",
       html: `
-        <div style="
-          font-family: Arial, sans-serif;
-          max-width: 600px;
-          margin: 0 auto;
-          padding: 30px;
-          background: #f8fafc;
-          color: #111827;
-        ">
-
-          <div style="
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            border: 1px solid #e5e7eb;
-          ">
-
-            <h1 style="
-              color: #7c3aed;
-              margin-bottom: 10px;
-            ">
-              ✦ TASKFLOW
-            </h1>
-
-            <h2>
-              Reset your password
-            </h2>
-
-            <p>
-              Hello ${user.name},
-            </p>
-
-            <p>
-              We received a request to reset
-              your TASKFLOW password.
-            </p>
-
-            <p>
-              Click the button below to create
-              a new password.
-            </p>
-
-            <div style="
-              margin: 30px 0;
-            ">
-              <a
-                href="${resetUrl}"
-                style="
-                  display: inline-block;
-                  padding: 12px 22px;
-                  background: #7c3aed;
-                  color: white;
-                  text-decoration: none;
-                  border-radius: 8px;
-                  font-weight: bold;
-                "
-              >
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:30px;background:#f8fafc;color:#111827;">
+          <div style="background:white;padding:30px;border-radius:12px;border:1px solid #e5e7eb;">
+            <h1 style="color:#7c3aed;">✦ TASKFLOW</h1>
+            <h2>Reset your password</h2>
+            <p>Hello ${user.name},</p>
+            <p>We received a request to reset your TASKFLOW password.</p>
+            <p>Click the button below to create a new password.</p>
+            <div style="margin:30px 0;">
+              <a href="${resetUrl}" style="display:inline-block;padding:12px 22px;background:#7c3aed;color:white;text-decoration:none;border-radius:8px;font-weight:bold;">
                 Reset Password
               </a>
             </div>
-
-            <p>
-              This link will expire in
-              <strong>10 minutes</strong>.
-            </p>
-
-            <p>
-              If you did not request a password
-              reset, you can safely ignore this
-              email.
-            </p>
-
-            <p style="
-              margin-top: 30px;
-              color: #6b7280;
-              font-size: 13px;
-            ">
-              © 2026 TASKFLOW
-            </p>
-
+            <p>This link will expire in <strong>10 minutes</strong>.</p>
+            <p>If you did not request a password reset, you can safely ignore this email.</p>
+            <p style="margin-top:30px;color:#6b7280;font-size:13px;">© 2026 TASKFLOW</p>
           </div>
         </div>
-      `
+      `,
     });
 
     return res.json({
       message:
-        "If an account with that email exists, a password reset link has been sent."
+        "If an account with that email exists, a password reset link has been sent.",
     });
   } catch (error) {
     console.error("FORGOT PASSWORD ERROR:", error);
 
     return res.status(500).json({
-      message: "Unable to process password reset request"
+      message: "Unable to process password reset request",
     });
   }
 });
@@ -882,13 +731,13 @@ router.post("/reset-password", async (req, res) => {
 
     if (!token || !password) {
       return res.status(400).json({
-        message: "Reset token and new password are required"
+        message: "Reset token and new password are required",
       });
     }
 
     if (password.length < 6) {
       return res.status(400).json({
-        message: "Password must be at least 6 characters"
+        message: "Password must be at least 6 characters",
       });
     }
 
@@ -900,13 +749,13 @@ router.post("/reset-password", async (req, res) => {
     const user = await User.findOne({
       resetPasswordToken: hashedResetToken,
       resetPasswordExpires: {
-        $gt: new Date()
-      }
+        $gt: new Date(),
+      },
     });
 
     if (!user) {
       return res.status(400).json({
-        message: "Invalid or expired password reset link"
+        message: "Invalid or expired password reset link",
       });
     }
 
@@ -920,13 +769,13 @@ router.post("/reset-password", async (req, res) => {
 
     return res.json({
       message:
-        "Password reset successfully. You can now login with your new password."
+        "Password reset successfully. You can now login with your new password.",
     });
   } catch (error) {
-    console.error("Reset password error:", error);
+    console.error("RESET PASSWORD ERROR:", error);
 
     return res.status(500).json({
-      message: "Unable to reset password"
+      message: "Unable to reset password",
     });
   }
 });
