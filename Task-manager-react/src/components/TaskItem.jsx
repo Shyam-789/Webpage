@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useSettings } from "../context/useSettings";
 
@@ -202,7 +203,10 @@ function TaskItem({ task, onToggle, onDelete, onEdit }) {
           LEFT SIDE
           ================================================= */}
 
-      <div className="task-left">
+      <div
+        className="task-left"
+        style={{ minWidth: 0 }}
+      >
 
         {/* Complete Checkbox */}
         <input
@@ -238,6 +242,13 @@ function TaskItem({ task, onToggle, onDelete, onEdit }) {
               }
             }}
             autoFocus
+            style={{
+              width: "100%",
+              maxWidth: "100%",
+              minWidth: 0,
+              flex: "1 1 0",
+              boxSizing: "border-box"
+            }}
           />
         ) : (
           <span
