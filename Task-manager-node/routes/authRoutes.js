@@ -3,45 +3,67 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
-const nodemailer = require("nodemailer");
 
 const User = require("../models/User");
 const authMiddleware = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-// =========================
-// Gmail SMTP Configuration
-// =========================
 
-const SMTP_USER = process.env.SMTP_USER;
-const SMTP_PASS = process.env.SMTP_PASS;
+ // =========================
+ // Brevo Email API Configuration
+ // =========================
 
-function createMailTransporter() {
-  if (!SMTP_USER || !SMTP_PASS) {
+async function sendTaskflowEmail({ to, subject, html }) {
+  const apiKey = process.env.BREVO_API_KEY;
+  const senderEmail = process.env.BREVO_SENDER_EMAIL;
+
+  if (!apiKey || !senderEmail) {
     throw new Error(
-      "SMTP_USER or SMTP_PASS is missing in .env"
+      "BREVO_API_KEY or BREVO_SENDER_EMAIL is missing in environment variables"
     );
   }
 
-  return nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: SMTP_USER,
-      pass: SMTP_PASS,
-    },
-  });
-}
+  const response = await fetch(
+    "https://api.brevo.com/v3/smtp/email",
+    {
+      method: "POST",
+      headers: {
+        "accept": "application/json",
+        "api-key": apiKey,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        sender: {
+          name: "TASKFLOW",
+          email: senderEmail,
+        },
+        to: [
+          {
+            email: to,
+          },
+        ],
+        subject,
+        htmlContent: html,
+      }),
+    }
+  );
 
-async function sendTaskflowEmail({ to, subject, html }) {
-  const transporter = createMailTransporter();
+  if (!response.ok) {
+    const errorDetails = await response.text();
 
-  return transporter.sendMail({
-    from: `"TASKFLOW" <${SMTP_USER}>`,
-    to,
-    subject,
-    html,
-  });
+    console.error(
+      "BREVO EMAIL API ERROR:",
+      response.status,
+      errorDetails
+    );
+
+    throw new Error(
+      `Brevo email request failed with status ${response.status}`
+    );
+  }
+
+  return response.json();
 }
 
 // =========================
