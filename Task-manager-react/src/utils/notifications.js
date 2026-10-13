@@ -59,7 +59,29 @@ export const showNotification = async (
     return;
   }
 
-  new Notification(title, {
-    ...options
-  });
+  try {
+    // Use a service worker on mobile when one is registered
+    if ("serviceWorker" in navigator) {
+      const registration =
+        await navigator.serviceWorker.getRegistration();
+
+      if (registration?.showNotification) {
+        await registration.showNotification(title, {
+          ...options,
+          icon: options.icon || "/favicon.ico",
+        });
+        return;
+      }
+    }
+
+    // Desktop fallback
+    new Notification(title, {
+      ...options,
+    });
+  } catch (error) {
+    console.error(
+      "TASKFLOW notification failed:",
+      error
+    );
+  }
 };
