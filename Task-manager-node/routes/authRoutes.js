@@ -220,6 +220,9 @@ router.post("/resend-verification", async (req, res) => {
     const verificationUrl =
       `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
 
+
+
+
     await sendTaskflowEmail({
       to: user.email,
       subject: "TASKFLOW - Verify Your Email",
@@ -683,6 +686,7 @@ router.post("/forgot-password", async (req, res) => {
 
     const resetUrl =
       `${frontendUrl}/reset-password/${resetToken}`;
+
 
     await sendTaskflowEmail({
       to: user.email,

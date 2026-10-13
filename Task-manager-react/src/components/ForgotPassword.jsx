@@ -28,8 +28,10 @@ function ForgotPassword({ onBackToLogin }) {
     try {
       setLoading(true);
 
+      const baseURL = API_URL.trim().replace(/\/+$/, "");
+
       const response = await fetch(
-        `${API_URL.replace(/\/+$/, "")}/auth/forgot-password`,
+        `${baseURL}/auth/forgot-password`,
         {
           method: "POST",
           headers: {
